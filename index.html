@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>自動販売機管理</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <header class="app-header">
+            <h1>自動販売機管理</h1>
+            <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
+                <span>📋 コピー中: <strong id="copy-product-info"></strong></span>
+                <button id="cancel-copy-btn" class="cancel-copy-btn">完了</button>
+            </div>
+            <div class="mode-switch">
+                <button id="mode-seller" class="mode-btn active">販売者</button>
+                <button id="mode-buyer" class="mode-btn">購入者</button>
+            </div>
+            <div id="machine-switch" class="machine-switch">
+                <!-- 自販機タブはJSで生成 -->
+            </div>
+            <button id="menu-btn" class="icon-btn" aria-label="メニュー">⚙️</button>
+        </header>
+
+        <main class="vending-machine">
+            <!-- 売上サマリー（販売者モード時のみ表示） -->
+            <div id="sales-summary" class="sales-summary hidden">
+                <div class="sales-summary-item">
+                    <span class="sales-label">前日</span>
+                    <span id="yesterday-sales" class="sales-amount">¥0</span>
+                </div>
+                <div class="sales-summary-item">
+                    <span class="sales-label">今日</span>
+                    <span id="today-sales" class="sales-amount">¥0</span>
+                </div>
+            </div>
+            <!-- 一括購入ボタン（販売者モード時のみ表示） -->
+            <div id="bulk-purchase-area" class="bulk-purchase-area hidden">
+                <button id="bulk-purchase-btn" class="action-btn warning">この自販機の商品を一括購入</button>
+            </div>
+            <div id="locker-grid" class="locker-grid">
+                <!-- ロッカーはJSで生成されます -->
+            </div>
+        </main>
+
+        <!-- 購入・解錠モーダル -->
+        <div id="buyer-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2 id="buyer-product-name">商品名</h2>
+                <p id="buyer-product-price" class="price-display">¥0</p>
+                <div class="coin-slot-area">
+                    <p>投入金額: <span id="inserted-amount">0</span>円</p>
+                    <button id="insert-coin-btn" class="action-btn primary">100円投入</button>
+                </div>
+                <button id="unlock-btn" class="action-btn success" disabled>解錠して取り出す</button>
+            </div>
+        </div>
+
+        <!-- 販売者・商品登録モーダル -->
+        <div id="seller-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>商品登録</h2>
+                <div class="preset-area">
+                    <p>商品名を選択:</p>
+                    <div id="preset-buttons" class="preset-grid">
+                        <!-- プリセットボタンはJSで生成 -->
+                    </div>
+                    <div class="custom-input-area">
+                        <input type="text" id="custom-product-name" placeholder="直接入力も可能">
+                    </div>
+                </div>
+                <div class="price-setting-area">
+                    <p>価格設定:</p>
+                    <div id="price-buttons" class="price-button-grid">
+                        <!-- 価格ボタンはJSで生成 -->
+                    </div>
+                    <p class="selected-price">選択中: <span id="setting-price">¥100</span></p>
+                </div>
+                <div class="seller-actions">
+                    <button id="register-btn" class="action-btn success">登録して施錠</button>
+                    <button id="copy-product-btn" class="action-btn primary hidden">この商品をコピー</button>
+                    <button id="admin-purchase-btn" class="action-btn warning hidden">管理者購入 (硬貨不要)</button>
+                    <button id="clear-locker-btn" class="action-btn danger hidden">取下げ (売上なし)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理メニューモーダル -->
+        <div id="admin-modal" class="modal hidden">
+            <div class="modal-content large-modal">
+                <span class="close-modal">&times;</span>
+                <h2>管理メニュー</h2>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="sales">売上管理</button>
+                    <button class="tab-btn" data-tab="machines">自販機設定</button>
+                    <button class="tab-btn" data-tab="presets">プリセット</button>
+                    <button class="tab-btn" data-tab="data">データ</button>
+                </div>
+
+                <div id="tab-sales" class="tab-content active">
+                    <div class="sales-controls">
+                        <select id="sales-period">
+                            <option value="daily">日別</option>
+                            <option value="monthly">月別</option>
+                        </select>
+                        <span id="total-sales">合計: ¥0</span>
+                    </div>
+                    <div class="sales-list-container">
+                        <table id="sales-table">
+                            <thead>
+                                <tr>
+                                    <th>日時</th>
+                                    <th>商品</th>
+                                    <th>金額</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sales-table-body">
+                                <!-- 売上データ -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-machines" class="tab-content">
+                    <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
+                    <div class="machine-actions">
+                        <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
+                        <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                    </div>
+                </div>
+
+                <div id="tab-presets" class="tab-content">
+                    <div id="edit-preset-list" class="preset-list">
+                        <!-- 編集用プリセットリスト -->
+                    </div>
+                    <div class="add-preset-form">
+                        <input type="text" id="new-preset-name" placeholder="新しい野菜名">
+                        <button id="add-preset-btn" class="action-btn">追加</button>
+                    </div>
+                </div>
+
+                <div id="tab-data" class="tab-content">
+                    <p>データをJSONファイルとして保存・復元できます。</p>
+                    <div class="data-actions">
+                        <button id="download-data-btn" class="action-btn primary">データをダウンロード</button>
+                        <div class="upload-area">
+                            <input type="file" id="upload-data-input" accept=".json">
+                            <button id="upload-data-btn" class="action-btn warning">データを取り込み</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>

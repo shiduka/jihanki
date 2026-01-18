@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>自動販売機管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #388E3C;
+            --secondary-color: #8BC34A;
+            --accent-color: #FFC107;
+            --danger-color: #f44336;
+            --text-color: #333;
+            --bg-color: #f5f5f5;
+            --locker-bg: #fff;
+            --locker-empty: #e0e0e0;
+            --locker-border: #ccc;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 15px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .app-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 15px;
+            position: relative;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 12px;
+        }
+
+        .app-header h1 {
+            margin: 0;
+            text-align: center;
+            font-size: 1.6rem;
+            color: var(--primary-dark);
+        }
+
+        .mode-switch,
+        .machine-switch {
+            display: flex;
+            background: #eee;
+            padding: 4px;
+            border-radius: 25px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .mode-btn,
+        .machine-tab {
+            flex: 1;
+            min-width: 70px;
+            border: none;
+            background: transparent;
+            padding: 12px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
+
+        .mode-btn.active,
+        .machine-tab.active {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: var(--primary-color);
+        }
+
+        .mode-btn.active#mode-seller {
+            color: #E91E63;
+        }
+
+        .icon-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .sales-summary {
+            display: flex;
+            justify-content: space-around;
+            background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: 2px solid var(--primary-color);
+        }
+
+        .sales-summary.hidden {
+            display: none;
+        }
+
+        .sales-summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sales-label {
+            font-size: 1rem;
+            color: #666;
+            font-weight: bold;
+        }
+
+        .sales-amount {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-dark);
+        }
+
+        .bulk-purchase-area {
+            margin-bottom: 15px;
+        }
+
+        .bulk-purchase-area.hidden {
+            display: none;
+        }
+
+        .locker-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .locker {
+            aspect-ratio: 1;
+            background: var(--locker-empty);
+            border: 2px solid var(--locker-border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.1s;
+            user-select: none;
+            position: relative;
+            min-height: 90px;
+        }
+
+        .locker:active {
+            transform: scale(0.95);
+        }
+
+        .locker.locked {
+            background: #E8F5E9;
+            border-color: var(--primary-color);
+        }
+
+        .locker-id {
+            position: absolute;
+            top: 3px;
+            left: 5px;
+            font-size: 0.75rem;
+            color: #999;
+        }
+
+        .locker-product {
+            font-weight: bold;
+            font-size: 1.15rem;
+            margin-bottom: 4px;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .locker-price {
+            background: var(--primary-color);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        .locker-status {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .modal {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 20px;
+            opacity: 1;
+            transition: opacity 0.2s;
+            overflow-y: auto;
+        }
+
+        .modal.hidden {
+            display: none;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: var(--radius);
+            width: 95%;
+            max-width: 400px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .modal-content.large-modal {
+            max-width: 500px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 12px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            padding: 5px;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--primary-dark);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.15rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            font-family: inherit;
+            touch-action: manipulation;
+        }
+
+        .action-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .action-btn.primary {
+            background: var(--secondary-color);
+            color: #fff;
+        }
+
+        .action-btn.success {
+            background: var(--primary-color);
+            color: #fff;
+        }
+
+        .action-btn.warning {
+            background: var(--accent-color);
+            color: #333;
+        }
+
+        .action-btn.danger {
+            background: var(--danger-color);
+            color: #fff;
+        }
+
+        .price-display {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary-dark);
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .selected-price {
+            text-align: center;
+            font-size: 1.1rem;
+            margin: 10px 0;
+        }
+
+        .selected-price span {
+            font-weight: bold;
+            color: var(--primary-dark);
+            font-size: 1.3rem;
+        }
+
+        .price-button-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .price-btn {
+            padding: 15px 10px;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            background: white;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .price-btn:active,
+        .price-btn.selected {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .preset-btn {
+            padding: 12px 8px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+        }
+
+        .preset-btn:active {
+            background: #f0f0f0;
+        }
+
+        .preset-btn.selected {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .custom-input-area input,
+        .add-preset-form input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+            margin-top: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-btn {
+            padding: 8px 10px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-family: inherit;
+            opacity: 0.6;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        .tab-btn.active {
+            opacity: 1;
+            border-bottom-color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .machine-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .sales-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .sales-controls select {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-family: inherit;
+        }
+
+        .sales-list-container {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #sales-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        #sales-table th,
+        #sales-table td {
+            padding: 8px 6px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        #sales-table th {
+            background: #f9f9f9;
+        }
+
+        .delete-record-btn {
+            background: #ffebee;
+            color: var(--danger-color);
+            border: none;
+            padding: 5px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .preset-list-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            align-items: center;
+        }
+
+        .remove-preset-btn {
+            color: var(--danger-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .copy-mode-indicator {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border: 2px solid #2196F3;
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .copy-mode-indicator span {
+            flex: 1;
+        }
+
+        .cancel-copy-btn {
+            background: #fff;
+            border: 1px solid #2196F3;
+            color: #2196F3;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+
+        .locker.copy-target {
+            border: 3px dashed #2196F3 !important;
+            animation: pulse-border 1s infinite;
+        }
+
+        @keyframes pulse-border {
+
+            0%,
+            100% {
+                border-color: #2196F3;
+            }
+
+            50% {
+                border-color: #90CAF9;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .locker-product {
+                font-size: 0.85rem;
+            }
+
+            .locker-price {
+                font-size: 0.75rem;
+            }
+
+            .price-btn {
+                padding: 12px 8px;
+                font-size: 1rem;
+            }
+
+            .preset-btn {
+                padding: 10px 6px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header class="app-header">
+            <h1>自動販売機管理</h1>
+            <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
+                <span>📋 コピー中: <strong id="copy-product-info"></strong></span>
+                <button id="cancel-copy-btn" class="cancel-copy-btn">完了</button>
+            </div>
+            <div class="mode-switch">
+                <button id="mode-seller" class="mode-btn active">販売者</button>
+                <button id="mode-buyer" class="mode-btn">購入者</button>
+            </div>
+            <div id="machine-switch" class="machine-switch">
+            </div>
+            <button id="menu-btn" class="icon-btn" aria-label="メニュー">⚙️</button>
+        </header>
+
+        <main class="vending-machine">
+            <div id="sales-summary" class="sales-summary hidden">
+                <div class="sales-summary-item">
+                    <span class="sales-label">前日</span>
+                    <span id="yesterday-sales" class="sales-amount">¥0</span>
+                </div>
+                <div class="sales-summary-item">
+                    <span class="sales-label">今日</span>
+                    <span id="today-sales" class="sales-amount">¥0</span>
+                </div>
+            </div>
+            <div id="bulk-purchase-area" class="bulk-purchase-area hidden">
+                <button id="bulk-purchase-btn" class="action-btn warning">この自販機の商品を一括購入</button>
+            </div>
+            <div id="locker-grid" class="locker-grid">
+            </div>
+        </main>
+
+        <div id="buyer-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2 id="buyer-product-name">商品名</h2>
+                <p id="buyer-product-price" class="price-display">¥0</p>
+                <div class="coin-slot-area">
+                    <p>投入金額: <span id="inserted-amount">0</span>円</p>
+                    <button id="insert-coin-btn" class="action-btn primary">100円投入</button>
+                </div>
+                <button id="unlock-btn" class="action-btn success" disabled>解錠して取り出す</button>
+            </div>
+        </div>
+
+        <div id="seller-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>商品登録</h2>
+                <div class="preset-area">
+                    <p>商品名を選択:</p>
+                    <div id="preset-buttons" class="preset-grid">
+                    </div>
+                    <div class="custom-input-area">
+                        <input type="text" id="custom-product-name" placeholder="直接入力も可能">
+                    </div>
+                </div>
+                <div class="price-setting-area">
+                    <p>価格設定:</p>
+                    <div id="price-buttons" class="price-button-grid">
+                    </div>
+                    <p class="selected-price">選択中: <span id="setting-price">¥100</span></p>
+                </div>
+                <div class="seller-actions">
+                    <button id="register-btn" class="action-btn success">登録して施錠</button>
+                    <button id="copy-product-btn" class="action-btn primary hidden">この商品をコピー</button>
+                    <button id="admin-purchase-btn" class="action-btn warning hidden">管理者購入 (硬貨不要)</button>
+                    <button id="clear-locker-btn" class="action-btn danger hidden">取下げ (売上なし)</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-modal" class="modal hidden">
+            <div class="modal-content large-modal">
+                <span class="close-modal">&times;</span>
+                <h2>管理メニュー</h2>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="sales">売上管理</button>
+                    <button class="tab-btn" data-tab="machines">自販機設定</button>
+                    <button class="tab-btn" data-tab="presets">プリセット</button>
+                    <button class="tab-btn" data-tab="data">データ</button>
+                </div>
+
+                <div id="tab-sales" class="tab-content active">
+                    <div class="sales-controls">
+                        <select id="sales-period">
+                            <option value="daily">日別</option>
+                            <option value="monthly">月別</option>
+                        </select>
+                        <span id="total-sales">合計: ¥0</span>
+                    </div>
+                    <div class="sales-list-container">
+                        <table id="sales-table">
+                            <thead>
+                                <tr>
+                                    <th>日時</th>
+                                    <th>商品</th>
+                                    <th>金額</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sales-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-machines" class="tab-content">
+                    <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
+                    <div class="machine-actions">
+                        <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
+                        <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                    </div>
+                </div>
+
+                <div id="tab-presets" class="tab-content">
+                    <div id="edit-preset-list" class="preset-list">
+                    </div>
+                    <div class="add-preset-form">
+                        <input type="text" id="new-preset-name" placeholder="新しい野菜名">
+                        <button id="add-preset-btn" class="action-btn">追加</button>
+                    </div>
+                </div>
+
+                <div id="tab-data" class="tab-content">
+                    <p>データをJSONファイルとして保存・復元できます。</p>
+                    <div class="data-actions">
+                        <button id="download-data-btn" class="action-btn primary">データをダウンロード</button>
+                        <div class="upload-area">
+                            <input type="file" id="upload-data-input" accept=".json">
+                            <button id="upload-data-btn" class="action-btn warning">データを取り込み</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /**
+         * 自動販売機管理アプリ（単一ファイル版）
+         */
+
+        const STORAGE_KEY = 'vending_machine_data';
+        const DEFAULT_PRESETS = ['大玉トマト', '中玉トマト', 'ミニトマト', 'レタス', 'いちご', 'キュウリ'];
+        const TOTAL_ROWS = 6;
+        const TOTAL_COLS = 3;
+        const PRICE_OPTIONS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+
+        let state = {
+            data: {
+                lockers: [],
+                sales: [],
+                presets: [...DEFAULT_PRESETS],
+                machineCount: 2
+            },
+            currentMachine: 1,
+            mode: 'seller',
+            selectedLockerId: null,
+            tempPrice: 100,
+            tempAmount: 0,
+            copyMode: false,
+            copyProduct: null
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            initLockers();
+            renderApp();
+            setupEventListeners();
+        });
+
+        function loadData() {
+            const json = localStorage.getItem(STORAGE_KEY);
+            if (json) {
+                try {
+                    const parsed = JSON.parse(json);
+                    state.data = { ...state.data, ...parsed };
+                    if (!state.data.presets) state.data.presets = [...DEFAULT_PRESETS];
+                    if (!state.data.machineCount) state.data.machineCount = 2;
+                } catch (e) {
+                    console.error('データ読み込みエラー', e);
+                }
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+        }
+
+        function initLockers() {
+            const existingMachineIds = new Set(state.data.lockers.map(l => l.machineId));
+            for (let m = 1; m <= state.data.machineCount; m++) {
+                if (!existingMachineIds.has(m)) {
+                    for (let r = 1; r <= TOTAL_ROWS; r++) {
+                        for (let c = 1; c <= TOTAL_COLS; c++) {
+                            state.data.lockers.push({
+                                id: `${m}-${r}-${c}`,
+                                machineId: m,
+                                row: r,
+                                col: c,
+                                isLocked: false,
+                                productName: '',
+                                price: 0,
+                                insertedAmount: 0
+                            });
+                        }
+                    }
+                }
+            }
+            saveData();
+        }
+
+        function renderApp() {
+            renderHeader();
+            renderMachineTabs();
+            renderLockers();
+            renderBulkPurchaseArea();
+            renderSalesSummary();
+            renderCopyModeIndicator();
+            renderAdminSales();
+            renderAdminPresets();
+            renderMachineSettings();
+        }
+
+        function renderHeader() {
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(state.mode === 'buyer' ? 'mode-buyer' : 'mode-seller').classList.add('active');
+        }
+
+        function renderMachineTabs() {
+            const container = document.getElementById('machine-switch');
+            container.innerHTML = '';
+            for (let m = 1; m <= state.data.machineCount; m++) {
+                const btn = document.createElement('button');
+                btn.className = `machine-tab ${m === state.currentMachine ? 'active' : ''}`;
+                btn.dataset.machine = m;
+                btn.textContent = `自販機${m}`;
+                btn.onclick = () => {
+                    state.currentMachine = m;
+                    renderApp();
+                };
+                container.appendChild(btn);
+            }
+        }
+
+        function renderLockers() {
+            const grid = document.getElementById('locker-grid');
+            grid.innerHTML = '';
+            const targetLockers = state.data.lockers.filter(l => l.machineId === state.currentMachine);
+            targetLockers.forEach(locker => {
+                const el = document.createElement('div');
+                let classes = 'locker';
+                if (locker.isLocked) classes += ' locked';
+                if (state.copyMode && !locker.isLocked) classes += ' copy-target';
+                el.className = classes;
+                el.dataset.id = locker.id;
+                el.onclick = () => handleLockerClick(locker);
+
+                const idSpan = document.createElement('span');
+                idSpan.className = 'locker-id';
+                idSpan.textContent = `${locker.row}-${locker.col}`;
+
+                const contentDiv = document.createElement('div');
+                contentDiv.style.textAlign = 'center';
+                contentDiv.style.width = '100%';
+
+                if (locker.isLocked) {
+                    contentDiv.innerHTML = `
+                        <div class="locker-product">${escapeHtml(locker.productName)}</div>
+                        <div class="locker-price">¥${locker.price}</div>
+                    `;
+                } else {
+                    contentDiv.innerHTML = `<span class="locker-status">空き</span>`;
+                }
+
+                el.append(idSpan, contentDiv);
+                grid.appendChild(el);
+            });
+        }
+
+        function renderBulkPurchaseArea() {
+            const area = document.getElementById('bulk-purchase-area');
+            if (state.mode === 'seller') {
+                const hasProducts = state.data.lockers.some(l => l.machineId === state.currentMachine && l.isLocked);
+                if (hasProducts) {
+                    area.classList.remove('hidden');
+                } else {
+                    area.classList.add('hidden');
+                }
+            } else {
+                area.classList.add('hidden');
+            }
+        }
+
+        function renderSalesSummary() {
+            const summary = document.getElementById('sales-summary');
+            const yesterdayEl = document.getElementById('yesterday-sales');
+            const todayEl = document.getElementById('today-sales');
+
+            if (state.mode === 'seller') {
+                summary.classList.remove('hidden');
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+                let todayTotal = 0;
+                let yesterdayTotal = 0;
+
+                state.data.sales.forEach(sale => {
+                    const saleDate = new Date(sale.date);
+                    const saleDateOnly = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate());
+                    if (saleDateOnly.getTime() === today.getTime()) {
+                        todayTotal += sale.price;
+                    } else if (saleDateOnly.getTime() === yesterday.getTime()) {
+                        yesterdayTotal += sale.price;
+                    }
+                });
+
+                yesterdayEl.textContent = `¥${yesterdayTotal.toLocaleString()}`;
+                todayEl.textContent = `¥${todayTotal.toLocaleString()}`;
+            } else {
+                summary.classList.add('hidden');
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('mode-buyer').onclick = () => setMode('buyer');
+            document.getElementById('mode-seller').onclick = () => setMode('seller');
+            document.getElementById('menu-btn').onclick = () => openModal('admin-modal');
+
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.onclick = () => closeModal();
+            });
+
+            window.onclick = (event) => {
+                if (event.target.classList.contains('modal')) {
+                    closeModal();
+                }
+            };
+
+            document.getElementById('insert-coin-btn').onclick = () => {
+                state.tempAmount += 100;
+                updateBuyerModalUI();
+            };
+            document.getElementById('unlock-btn').onclick = processPurchase;
+
+            document.getElementById('register-btn').onclick = registerProduct;
+            document.getElementById('admin-purchase-btn').onclick = processAdminPurchase;
+            document.getElementById('clear-locker-btn').onclick = clearLocker;
+            document.getElementById('copy-product-btn').onclick = startCopyMode;
+            document.getElementById('cancel-copy-btn').onclick = cancelCopyMode;
+            document.getElementById('bulk-purchase-btn').onclick = processBulkPurchase;
+
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.onclick = () => {
+                    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+                };
+            });
+
+            document.getElementById('add-preset-btn').onclick = addPreset;
+            document.getElementById('add-machine-btn').onclick = addMachine;
+            document.getElementById('remove-machine-btn').onclick = removeMachine;
+            document.getElementById('download-data-btn').onclick = downloadData;
+            document.getElementById('upload-data-btn').onclick = () => document.getElementById('upload-data-input').click();
+            document.getElementById('upload-data-input').onchange = uploadData;
+            document.getElementById('sales-period').onchange = renderAdminSales;
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            renderApp();
+        }
+
+        function handleLockerClick(locker) {
+            state.selectedLockerId = locker.id;
+            if (state.copyMode) {
+                if (!locker.isLocked) {
+                    pasteProduct(locker);
+                }
+                return;
+            }
+            if (state.mode === 'seller') {
+                openSellerModal(locker);
+            } else {
+                if (locker.isLocked) {
+                    openBuyerModal(locker);
+                }
+            }
+        }
+
+        function openSellerModal(locker) {
+            const productNameInput = document.getElementById('custom-product-name');
+            const adminPurchaseBtn = document.getElementById('admin-purchase-btn');
+            const clearBtn = document.getElementById('clear-locker-btn');
+            const registerBtn = document.getElementById('register-btn');
+            const copyBtn = document.getElementById('copy-product-btn');
+
+            renderPresetButtons();
+            renderPriceButtons();
+
+            if (locker.isLocked) {
+                productNameInput.value = locker.productName;
+                state.tempPrice = locker.price;
+                adminPurchaseBtn.classList.remove('hidden');
+                clearBtn.classList.remove('hidden');
+                copyBtn.classList.remove('hidden');
+                registerBtn.textContent = "更新";
+            } else {
+                productNameInput.value = '';
+                state.tempPrice = 100;
+                adminPurchaseBtn.classList.add('hidden');
+                clearBtn.classList.add('hidden');
+                copyBtn.classList.add('hidden');
+                registerBtn.textContent = "登録して施錠";
+            }
+
+            updatePriceDisplay();
+            updatePriceButtonSelection();
+            openModal('seller-modal');
+        }
+
+        function renderCopyModeIndicator() {
+            const indicator = document.getElementById('copy-mode-indicator');
+            const productInfo = document.getElementById('copy-product-info');
+            if (state.copyMode && state.copyProduct) {
+                indicator.classList.remove('hidden');
+                productInfo.textContent = `${state.copyProduct.productName} ¥${state.copyProduct.price}`;
+            } else {
+                indicator.classList.add('hidden');
+            }
+        }
+
+        function startCopyMode() {
+            const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
+            if (!locker || !locker.isLocked) return;
+            state.copyMode = true;
+            state.copyProduct = {
+                productName: locker.productName,
+                price: locker.price
+            };
+            closeModal();
+            renderApp();
+        }
+
+        function cancelCopyMode() {
+            state.copyMode = false;
+            state.copyProduct = null;
+            renderApp();
+        }
+
+        function pasteProduct(locker) {
+            if (!state.copyProduct) return;
+            updateLocker(locker.id, {
+                isLocked: true,
+                productName: state.copyProduct.productName,
+                price: state.copyProduct.price,
+                insertedAmount: 0
+            });
+            saveData();
+            renderApp();
+        }
+
+        function renderPresetButtons() {
+            const container = document.getElementById('preset-buttons');
+            container.innerHTML = '';
+            state.data.presets.forEach(p => {
+                const btn = document.createElement('button');
+                btn.textContent = p;
+                btn.className = 'preset-btn';
+                btn.onclick = () => {
+                    document.getElementById('custom-product-name').value = p;
+                    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function renderPriceButtons() {
+            const container = document.getElementById('price-buttons');
+            container.innerHTML = '';
+            PRICE_OPTIONS.forEach(price => {
+                const btn = document.createElement('button');
+                btn.textContent = `¥${price}`;
+                btn.className = 'price-btn';
+                btn.dataset.price = price;
+                btn.onclick = () => {
+                    state.tempPrice = price;
+                    updatePriceDisplay();
+                    updatePriceButtonSelection();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function updatePriceButtonSelection() {
+            document.querySelectorAll('.price-btn').forEach(btn => {
+                btn.classList.toggle('selected', parseInt(btn.dataset.price) === state.tempPrice);
+            });
+        }
+
+        function updatePriceDisplay() {
+            document.getElementById('setting-price').textContent = `¥${state.tempPrice}`;
+        }
+
+        function registerProduct() {
+            const name = document.getElementById('custom-product-name').value;
+            if (!name) {
+                alert('商品名を入力してください');
+                return;
+            }
+            if (state.tempPrice <= 0) {
+                alert('価格を選択してください');
+                return;
+            }
+            updateLocker(state.selectedLockerId, {
+                isLocked: true,
+                productName: name,
+                price: state.tempPrice,
+                insertedAmount: 0
+            });
+            saveData();
+            closeModal();
+            renderApp();
+        }
+
+        function clearLocker() {
+            if (!confirm('本当に取り下げますか？（売上には計上されません）')) return;
+            updateLocker(state.selectedLockerId, {
+                isLocked: false,
+                productName: '',
+                price: 0,
+                insertedAmount: 0
+            });
+            saveData();
+            closeModal();
+            renderApp();
+        }
+
+        function processAdminPurchase() {
+            const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
+            if (!locker) return;
+            addSalesRecord(locker.productName, locker.price, locker.machineId);
+            updateLocker(state.selectedLockerId, {
+                isLocked: false,
+                productName: '',
+                price: 0,
+                insertedAmount: 0
+            });
+            saveData();
+            closeModal();
+            renderApp();
+            alert('硬貨不要で購入処理しました（売上に計上されました）');
+        }
+
+        function processBulkPurchase() {
+            const machineLockers = state.data.lockers.filter(l => l.machineId === state.currentMachine && l.isLocked);
+            if (machineLockers.length === 0) {
+                alert('この自販機には商品がありません');
+                return;
+            }
+            const totalAmount = machineLockers.reduce((sum, l) => sum + l.price, 0);
+            const productCount = machineLockers.length;
+            if (!confirm(`自販機${state.currentMachine}の商品を一括購入しますか？\n\n商品数: ${productCount}個\n合計金額: ¥${totalAmount}\n\n※すべての商品が売上に計上され、ロッカーは空になります。`)) {
+                return;
+            }
+            machineLockers.forEach(locker => {
+                addSalesRecord(locker.productName, locker.price, locker.machineId);
+                updateLocker(locker.id, {
+                    isLocked: false,
+                    productName: '',
+                    price: 0,
+                    insertedAmount: 0
+                });
+            });
+            saveData();
+            renderApp();
+            alert(`一括購入が完了しました\n\n売上: ¥${totalAmount}`);
+        }
+
+        function openBuyerModal(locker) {
+            state.tempAmount = 0;
+            document.getElementById('buyer-product-name').textContent = locker.productName;
+            document.getElementById('buyer-product-price').textContent = `¥${locker.price}`;
+            updateBuyerModalUI(locker);
+            openModal('buyer-modal');
+        }
+
+        function updateBuyerModalUI(locker = null) {
+            if (!locker) {
+                locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
+            }
+            document.getElementById('inserted-amount').textContent = state.tempAmount;
+            const unlockBtn = document.getElementById('unlock-btn');
+            if (state.tempAmount >= locker.price) {
+                unlockBtn.disabled = false;
+                unlockBtn.textContent = "解錠して取り出す";
+            } else {
+                unlockBtn.disabled = true;
+                unlockBtn.textContent = `あと${locker.price - state.tempAmount}円不足`;
+            }
+        }
+
+        function processPurchase() {
+            const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
+            if (!locker) return;
+            addSalesRecord(locker.productName, locker.price, locker.machineId);
+            updateLocker(state.selectedLockerId, {
+                isLocked: false,
+                productName: '',
+                price: 0,
+                insertedAmount: 0
+            });
+            saveData();
+            closeModal();
+            renderApp();
+            alert('ありがとうございます！商品をお取りください。');
+        }
+
+        function updateLocker(id, Updates) {
+            const idx = state.data.lockers.findIndex(l => l.id === id);
+            if (idx !== -1) {
+                state.data.lockers[idx] = { ...state.data.lockers[idx], ...Updates };
+            }
+        }
+
+        function addSalesRecord(name, price, machineId) {
+            state.data.sales.push({
+                id: Date.now() + Math.random(),
+                date: new Date().toISOString(),
+                productName: name,
+                price: price,
+                machineId: machineId
+            });
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, function (m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+
+        function renderAdminSales() {
+            const tbody = document.getElementById('sales-table-body');
+            const totalEl = document.getElementById('total-sales');
+            const period = document.getElementById('sales-period').value;
+            tbody.innerHTML = '';
+            let filtered = [...state.data.sales];
+            const now = new Date();
+
+            if (period === 'monthly') {
+                filtered = filtered.filter(s => {
+                    const d = new Date(s.date);
+                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                });
+            } else {
+                filtered = filtered.filter(s => {
+                    const d = new Date(s.date);
+                    return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                });
+            }
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let sum = 0;
+            filtered.forEach(sale => {
+                sum += sale.price;
+                const tr = document.createElement('tr');
+                const d = new Date(sale.date);
+                const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+                tr.innerHTML = `
+                    <td>${dateStr}</td>
+                    <td>${escapeHtml(sale.productName)}</td>
+                    <td>¥${sale.price}</td>
+                    <td><button class="delete-record-btn" onclick="deleteSale(${sale.id})">削除</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            totalEl.textContent = `合計: ¥${sum}`;
+        }
+
+        window.deleteSale = function (id) {
+            if (!confirm('この売上記録を削除しますか？')) return;
+            state.data.sales = state.data.sales.filter(s => s.id !== id);
+            saveData();
+            renderAdminSales();
+        };
+
+        function renderAdminPresets() {
+            const list = document.getElementById('edit-preset-list');
+            list.innerHTML = '';
+            state.data.presets.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = 'preset-list-item';
+                div.innerHTML = `
+                    <span>${escapeHtml(p)}</span>
+                    <button class="remove-preset-btn" onclick="removePreset(${index})">&times;</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function addPreset() {
+            const input = document.getElementById('new-preset-name');
+            const val = input.value.trim();
+            if (val) {
+                state.data.presets.push(val);
+                input.value = '';
+                saveData();
+                renderAdminPresets();
+            }
+        }
+
+        window.removePreset = function (index) {
+            if (!confirm('削除しますか？')) return;
+            state.data.presets.splice(index, 1);
+            saveData();
+            renderAdminPresets();
+        };
+
+        function renderMachineSettings() {
+            document.getElementById('machine-count').textContent = state.data.machineCount;
+        }
+
+        function addMachine() {
+            state.data.machineCount++;
+            const m = state.data.machineCount;
+            for (let r = 1; r <= TOTAL_ROWS; r++) {
+                for (let c = 1; c <= TOTAL_COLS; c++) {
+                    state.data.lockers.push({
+                        id: `${m}-${r}-${c}`,
+                        machineId: m,
+                        row: r,
+                        col: c,
+                        isLocked: false,
+                        productName: '',
+                        price: 0,
+                        insertedAmount: 0
+                    });
+                }
+            }
+            saveData();
+            renderApp();
+            alert(`自販機${m}を追加しました`);
+        }
+
+        function removeMachine() {
+            if (state.data.machineCount <= 1) {
+                alert('最低1台は必要です');
+                return;
+            }
+            const m = state.data.machineCount;
+            const machineLockers = state.data.lockers.filter(l => l.machineId === m);
+            const hasProducts = machineLockers.some(l => l.isLocked);
+
+            if (hasProducts) {
+                if (!confirm(`自販機${m}には商品が入っています。削除すると商品データも消えますが、よろしいですか？`)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`自販機${m}を削除しますか？`)) {
+                    return;
+                }
+            }
+
+            state.data.lockers = state.data.lockers.filter(l => l.machineId !== m);
+            state.data.machineCount--;
+
+            if (state.currentMachine > state.data.machineCount) {
+                state.currentMachine = 1;
+            }
+
+            saveData();
+            renderApp();
+            alert(`自販機${m}を削除しました`);
+        }
+
+        function downloadData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.data));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "vending_machine_data.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function uploadData() {
+            const input = document.getElementById('upload-data-input');
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if (json && json.lockers) {
+                        state.data = json;
+                        if (!state.data.machineCount) {
+                            const maxMachine = Math.max(...state.data.lockers.map(l => l.machineId));
+                            state.data.machineCount = maxMachine || 2;
+                        }
+                        saveData();
+                        renderApp();
+                        alert('データを取り込みました');
+                    } else {
+                        alert('データ形式が正しくありません');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('ファイルの読み込みに失敗しました');
+                }
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+
+</html>

@@ -124,6 +124,10 @@ body {
     display: none;
 }
 
+.copy-mode-indicator {
+    margin-bottom: 15px;
+}
+
 .sales-summary-item {
     display: flex;
     flex-direction: column;

@@ -161,11 +161,13 @@ function renderLockers() {
 
 function renderBulkPurchaseArea() {
     const area = document.getElementById('bulk-purchase-area');
+    const btn = document.getElementById('bulk-purchase-btn');
     if (state.mode === 'seller') {
-        // 現在の自販機に商品があるかチェック
         const hasProducts = state.data.lockers.some(l => l.machineId === state.currentMachine && l.isLocked);
         if (hasProducts) {
             area.classList.remove('hidden');
+            // コピーモード中は無効化
+            btn.disabled = state.copyMode;
         } else {
             area.classList.add('hidden');
         }
@@ -286,6 +288,21 @@ function handleLockerClick(locker) {
         if (!locker.isLocked) {
             // 空きロッカーにコピーを貼り付け
             pasteProduct(locker);
+        } else {
+            // コピーした（同じ内容の）商品をもう一度クリックで空きに戻す
+            if (state.copyProduct &&
+                locker.productName === state.copyProduct.productName &&
+                locker.price === state.copyProduct.price) {
+
+                updateLocker(locker.id, {
+                    isLocked: false,
+                    productName: '',
+                    price: 0,
+                    insertedAmount: 0
+                });
+                saveData();
+                renderApp();
+            }
         }
         return;
     }

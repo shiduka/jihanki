@@ -15,10 +15,6 @@
     <div id="app">
         <header class="app-header">
             <h1>自動販売機管理</h1>
-            <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
-                <span>📋 コピー中: <strong id="copy-product-info"></strong></span>
-                <button id="cancel-copy-btn" class="cancel-copy-btn">完了</button>
-            </div>
             <div class="mode-switch">
                 <button id="mode-seller" class="mode-btn active">販売者</button>
                 <button id="mode-buyer" class="mode-btn">購入者</button>
@@ -44,6 +40,10 @@
             <!-- 一括購入ボタン（販売者モード時のみ表示） -->
             <div id="bulk-purchase-area" class="bulk-purchase-area hidden">
                 <button id="bulk-purchase-btn" class="action-btn warning">この自販機の商品を一括購入</button>
+            </div>
+            <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
+                <span>📋 コピー中: <strong id="copy-product-info"></strong></span>
+                <button id="cancel-copy-btn" class="cancel-copy-btn">完了</button>
             </div>
             <div id="locker-grid" class="locker-grid">
                 <!-- ロッカーはJSで生成されます -->

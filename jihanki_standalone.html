@@ -224,10 +224,11 @@
 
         .locker-id {
             position: absolute;
-            top: 3px;
-            left: 5px;
-            font-size: 0.75rem;
-            color: #999;
+            top: 4px;
+            left: 4px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #666;
         }
 
         .locker-product {
@@ -992,8 +993,9 @@
         }
 
         function createLockers(m) {
+            // 右上が1-1になるよう、[3列, 2列, 1列]の順で生成する
             for (let r = 1; r <= TOTAL_ROWS; r++) {
-                for (let c = 1; c <= 3; c++) {
+                for (let c = 3; c >= 1; c--) {
                     state.data.lockers.push({
                         id: `${m}-${r}-${c}`,
                         machineId: m, machineNum: m,
@@ -1533,6 +1535,20 @@
                     return;
                 }
                 if (cloudData && cloudData.lockers) {
+                    // 他ユーザーのアクティビティ確認
+                    if (cloudData.lastActiveTime) {
+                        const diff = Date.now() - cloudData.lastActiveTime;
+                        state.otherUserActive = diff < 60000;
+                        const warningEl = document.getElementById('activity-warning');
+                        if (warningEl) warningEl.classList.toggle('hidden', !state.otherUserActive);
+                    }
+
+                    // 設定の同期
+                    if (cloudData.oneClickMode !== undefined) {
+                        state.oneClickMode = (cloudData.oneClickMode === true || cloudData.oneClickMode === "true");
+                    }
+
+                    // ローカルデータをクラウドのもので更新（日付化対策含む）
                     state.data.lockers = (cloudData.lockers || []).map(l => {
                         if (!(l.coordNum && typeof l.coordNum === 'string' && l.coordNum.includes('-'))) {
                             if (l.row && l.col) l.coordNum = `${l.col}-${l.row}`;

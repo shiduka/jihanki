@@ -190,10 +190,13 @@ body {
 
 .locker-id {
     position: absolute;
-    top: 3px;
-    left: 5px;
-    font-size: 0.75rem;
-    color: #999;
+    top: 4px;
+    left: 4px;
+    font-size: 0.95rem;
+    /* 拡大 */
+    font-weight: bold;
+    color: #666;
+    /* 少し濃く */
 }
 
 .locker-product {

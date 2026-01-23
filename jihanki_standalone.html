@@ -1563,16 +1563,21 @@
                         state.oneClickMode = (cloudData.oneClickMode === true || cloudData.oneClickMode === "true");
                     }
 
-                    // ローカルデータをクラウドのもので更新（日付化対策含む）
+                    // ローカルデータをクラウドのもので更新（日付化対策 & ソート）
                     state.data.lockers = (cloudData.lockers || []).map(l => {
                         if (!(l.coordNum && typeof l.coordNum === 'string' && l.coordNum.includes('-'))) {
                             if (l.row && l.col) l.coordNum = `${l.col}-${l.row}`;
                         }
+                        l.machineId = parseInt(l.machineId);
+                        l.row = parseInt(l.row);
+                        l.col = parseInt(l.col);
                         return l;
                     });
+                    sortLockersCorrectly();
+
                     state.data.sales = cloudData.sales || [];
                     state.data.presets = cloudData.presets || state.data.presets;
-                    state.data.machineCount = cloudData.machineCount || state.data.machineCount;
+                    state.data.machineCount = parseInt(cloudData.machineCount) || state.data.machineCount;
 
                     initLockers();
                     saveDataLocally();

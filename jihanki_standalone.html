@@ -977,11 +977,18 @@
         }
 
         function initLockers() {
-            const needsReset = state.data.lockers.length === 0 || !state.data.lockers[0].coordNum;
-            if (needsReset) {
-                state.data.lockers = [];
-                for (let m = 1; m <= state.data.machineCount; m++) {
-                    createLockers(m);
+            const isOrderCorrect = state.data.lockers.length > 0 &&
+                state.data.lockers[0].col === 3 &&
+                state.data.lockers[0].row === 1;
+
+            if (state.data.lockers.length === 0 || !state.data.lockers[0].coordNum || !isOrderCorrect) {
+                if (state.data.lockers.length > 0) {
+                    sortLockersCorrectly();
+                } else {
+                    state.data.lockers = [];
+                    for (let m = 1; m <= state.data.machineCount; m++) {
+                        createLockers(m);
+                    }
                 }
             } else {
                 const existingMachineIds = new Set(state.data.lockers.map(l => l.machineId));
@@ -990,6 +997,14 @@
                 }
             }
             saveDataLocally();
+        }
+
+        function sortLockersCorrectly() {
+            state.data.lockers.sort((a, b) => {
+                if (a.machineId !== b.machineId) return a.machineId - b.machineId;
+                if (a.row !== b.row) return a.row - b.row;
+                return b.col - a.col;
+            });
         }
 
         function createLockers(m) {

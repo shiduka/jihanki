@@ -82,21 +82,38 @@ function saveData() {
 }
 
 function initLockers() {
-    const needsReset = state.data.lockers.length === 0 || !state.data.lockers[0].coordNum;
-    if (needsReset) {
-        state.data.lockers = [];
-        for (let m = 1; m <= state.data.machineCount; m++) {
-            createLockersForMachine(m);
+    // 列が [3, 2, 1] の順（右上が1-1）になっているかチェック
+    const isOrderCorrect = state.data.lockers.length > 0 &&
+        state.data.lockers[0].col === 3 &&
+        state.data.lockers[0].row === 1;
+
+    if (state.data.lockers.length === 0 || !state.data.lockers[0].coordNum || !isOrderCorrect) {
+        // 並び順が古い、またはデータがない場合は並び替え・再生成を検討
+        // 既存商品がある場合は、IDを維持したまま並び順(Array index)だけを変える
+        if (state.data.lockers.length > 0) {
+            sortLockersCorrectly();
+        } else {
+            state.data.lockers = [];
+            for (let m = 1; m <= state.data.machineCount; m++) {
+                createLockersForMachine(m);
+            }
         }
     } else {
         const existingMachineIds = new Set(state.data.lockers.map(l => l.machineId));
         for (let m = 1; m <= state.data.machineCount; m++) {
-            if (!existingMachineIds.has(m)) {
-                createLockersForMachine(m);
-            }
+            if (!existingMachineIds.has(m)) createLockersForMachine(m);
         }
     }
     saveDataLocally();
+}
+
+function sortLockersCorrectly() {
+    // state.data.lockersを、各マシンごとに [3-r, 2-r, 1-r] の順になるよう並び替える
+    state.data.lockers.sort((a, b) => {
+        if (a.machineId !== b.machineId) return a.machineId - b.machineId;
+        if (a.row !== b.row) return a.row - b.row;
+        return b.col - a.col; // c=3, 2, 1 の順
+    });
 }
 
 function createLockersForMachine(m) {

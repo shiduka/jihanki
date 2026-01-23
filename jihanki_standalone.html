@@ -1405,7 +1405,7 @@
                 return;
             }
             machineLockers.forEach(locker => {
-                addSalesRecord(locker.productName, locker.price, locker.machineId);
+                addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum);
                 updateLocker(locker.id, {
                     isLocked: false,
                     productName: '',

@@ -994,14 +994,13 @@
         }
 
         function createLockers(m) {
-            for (let c = 3; c >= 1; c--) {
-                const displayCol = 4 - c;
-                for (let r = 1; r <= TOTAL_ROWS; r++) {
+            for (let r = 1; r <= TOTAL_ROWS; r++) {
+                for (let c = 1; c <= 3; c++) {
                     state.data.lockers.push({
                         id: `${m}-${r}-${c}`,
                         machineId: m, machineNum: m,
                         row: r, col: c,
-                        coordNum: `${displayCol}-${r}`,
+                        coordNum: `${c}-${r}`,
                         isLocked: false, productName: '', price: 0, insertedAmount: 0
                     });
                 }
@@ -1057,7 +1056,7 @@
 
                 const idSpan = document.createElement('span');
                 idSpan.className = 'locker-id';
-                idSpan.textContent = `${locker.row}-${locker.col}`;
+                idSpan.textContent = locker.coordNum;
 
                 const contentDiv = document.createElement('div');
                 contentDiv.style.textAlign = 'center';

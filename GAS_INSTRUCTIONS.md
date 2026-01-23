@@ -12,12 +12,11 @@
 
 ```javascript
 /*
- * 自動販売機アプリ用クラウド同期プログラム (GAS) - v2 (Heartbeat対応版)
+ * 自動販売機アプリ用クラウド同期プログラム (GAS) - v2.1 (日付誤認対策版)
  */
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
   const lockerSheet = getOrCreateSheet(ss, "lockers");
   const salesSheet = getOrCreateSheet(ss, "sales");
   const metaSheet = getOrCreateSheet(ss, "meta");
@@ -28,7 +27,7 @@ function doGet(e) {
     presets: getMetaValue(metaSheet, "presets"),
     machineCount: getMetaValue(metaSheet, "machineCount"),
     oneClickMode: getMetaValue(metaSheet, "oneClickMode"),
-    lastActiveTime: getMetaValue(metaSheet, "lastActiveTime") // 全体の最終操作
+    lastActiveTime: getMetaValue(metaSheet, "lastActiveTime")
   };
   
   return ContentService.createTextOutput(JSON.stringify(result))
@@ -47,32 +46,36 @@ function doPost(e) {
   if (params.machineCount !== undefined) setMetaValue(metaSheet, "machineCount", params.machineCount);
   if (params.oneClickMode !== undefined) setMetaValue(metaSheet, "oneClickMode", params.oneClickMode);
   
-  // 最終操作時刻を記録
   setMetaValue(metaSheet, "lastActiveTime", Date.now());
   
   return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// --- 以下、ユーティリティ関数 ---
+// --- ユーティリティ ---
 
 function getOrCreateSheet(ss, name) {
   let sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-  }
+  if (!sheet) { sheet = ss.insertSheet(name); }
   return sheet;
 }
 
 function getRowsAsObjects(sheet) {
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-  const headers = data[0];
-  return data.slice(1).map(row => {
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  const displayValues = range.getDisplayValues(); // 見た目通りの文字列を取得
+  if (values.length < 2) return [];
+  
+  const headers = values[0];
+  return values.slice(1).map((row, rowIndex) => {
     let obj = {};
     headers.forEach((h, i) => {
       let val = row[i];
-      if (h === 'isLocked') val = (val === true || val === "true");
+      // coordNumやidが日付として誤認されている場合、表示文字列(1-1など)を採用する
+      if (h === 'coordNum' || h === 'id') {
+        val = displayValues[rowIndex + 1][i];
+      }
+      if (h === 'isLocked') val = (val === true || val === "true" || displayValues[rowIndex + 1][i] === "TRUE");
       obj[h] = val;
     });
     return obj;
@@ -143,3 +146,9 @@ function setMetaValue(sheet, key, value) {
 ### ③ デプロイの完了を確認
 デプロイ後、そのURLをブラウザの新しいタブで直接開いてみてください。
 うまく設定できていれば、画面に `{"lockers": [], "sales": [], ...}` のような英数字から始まる文字が表示されます。何も表示されない、またはエラーが出る場合は、デプロイ手順を見直してください。
+
+### ④ スプレッドシートの書式を「書式なしテキスト」にする
+Googleスプレッドシートが「1-1」を勝手に日付に変えてしまうのを防ぐため、以下の操作を推奨します。
+1. スプレッドシート全体を選択（左上の四角をクリック）。
+2. メニューの **「表示形式」→「数字」→「書式なしテキスト」** を選択します。
+ これにより、データが意図しない形式に変換されるのを防げます。

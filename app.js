@@ -100,14 +100,15 @@ function initLockers() {
 }
 
 function createLockersForMachine(m) {
-    for (let c = 3; c >= 1; c--) {
-        const displayCol = 4 - c;
-        for (let r = 1; r <= TOTAL_ROWS; r++) {
+    // グリッドは行(row)ごとに埋まるため、row-majorで生成する
+    // c=1:右, c=2:中, c=3:左 (CSSのdirection:rtlにより)
+    for (let r = 1; r <= TOTAL_ROWS; r++) {
+        for (let c = 1; c <= 3; c++) {
             state.data.lockers.push({
                 id: `${m}-${r}-${c}`,
                 machineId: m, machineNum: m,
                 row: r, col: c,
-                coordNum: `${displayCol}-${r}`,
+                coordNum: `${c}-${r}`, // 右上が1-1, 左上が3-1
                 isLocked: false, productName: '', price: 0, insertedAmount: 0
             });
         }
@@ -310,18 +311,31 @@ function setupEventListeners() {
     // 全売上削除
     document.getElementById('clear-all-sales-btn').onclick = clearAllSales;
 
-    // クラウドURL保存
-    document.getElementById('save-cloud-url-btn').onclick = () => {
-        const url = document.getElementById('cloud-url-input').value.trim();
-        state.data.cloudUrl = url;
-        saveData();
-        if (url) {
-            alert('クラウドURLを保存しました。同期を開始します。');
-            fetchFromCloud();
-        } else {
-            alert('クラウド同期を解除しました（ローカル保存のみになります）。');
-        }
-    };
+    // クラウドURL編集ロック関連
+    const displayArea = document.getElementById('cloud-url-display-area');
+    const editArea = document.getElementById('cloud-url-edit-area');
+
+    if (document.getElementById('edit-cloud-url-btn')) {
+        document.getElementById('edit-cloud-url-btn').onclick = () => {
+            displayArea.classList.add('hidden');
+            editArea.classList.remove('hidden');
+            document.getElementById('cloud-url-edit-input').value = state.data.cloudUrl || '';
+        };
+    }
+
+    if (document.getElementById('save-cloud-url-btn')) {
+        document.getElementById('save-cloud-url-btn').onclick = () => {
+            const url = document.getElementById('cloud-url-edit-input').value.trim();
+            state.data.cloudUrl = url;
+            saveData();
+            editArea.classList.add('hidden');
+            displayArea.classList.remove('hidden');
+            if (url) {
+                alert('クラウドURLを保存しました。同期を開始します。');
+                fetchFromCloud();
+            }
+        };
+    }
 
     // 手動同期
     document.getElementById('manual-sync-btn').onclick = () => {
@@ -746,7 +760,7 @@ async function fetchFromCloud(silent = false) {
 
             // 設定の同期
             if (cloudData.oneClickMode !== undefined) {
-                state.oneClickMode = cloudData.oneClickMode;
+                state.oneClickMode = (cloudData.oneClickMode === true || cloudData.oneClickMode === "true");
             }
 
             // ローカルデータをクラウドのもので更新

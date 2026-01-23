@@ -48,12 +48,12 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchFromCloud();
     }
 
-    // 定期同期設定 (30秒ごと)
+    // 定期同期設定 (15秒ごとに短縮して検知精度アップ)
     setInterval(() => {
         if (state.data.cloudUrl && !state.copyMode) {
             fetchFromCloud(true); // サイレント更新
         }
-    }, 30000);
+    }, 15000);
 });
 
 function loadData() {
@@ -82,30 +82,36 @@ function saveData() {
 }
 
 function initLockers() {
-    // 現在のデータにあるロッカーの最大マシンIDを取得
-    const existingMachineIds = new Set(state.data.lockers.map(l => l.machineId));
-
-    // 必要な台数分のロッカーを生成
-    for (let m = 1; m <= state.data.machineCount; m++) {
-        if (!existingMachineIds.has(m)) {
-            // この号機のロッカーがない場合は生成
-            for (let r = 1; r <= TOTAL_ROWS; r++) {
-                for (let c = 1; c <= TOTAL_COLS; c++) {
-                    state.data.lockers.push({
-                        id: `${m}-${r}-${c}`,
-                        machineId: m,
-                        row: r,
-                        col: c,
-                        isLocked: false,
-                        productName: '',
-                        price: 0,
-                        insertedAmount: 0
-                    });
-                }
+    const needsReset = state.data.lockers.length === 0 || !state.data.lockers[0].coordNum;
+    if (needsReset) {
+        state.data.lockers = [];
+        for (let m = 1; m <= state.data.machineCount; m++) {
+            createLockersForMachine(m);
+        }
+    } else {
+        const existingMachineIds = new Set(state.data.lockers.map(l => l.machineId));
+        for (let m = 1; m <= state.data.machineCount; m++) {
+            if (!existingMachineIds.has(m)) {
+                createLockersForMachine(m);
             }
         }
     }
-    saveData();
+    saveDataLocally();
+}
+
+function createLockersForMachine(m) {
+    for (let c = 3; c >= 1; c--) {
+        const displayCol = 4 - c;
+        for (let r = 1; r <= TOTAL_ROWS; r++) {
+            state.data.lockers.push({
+                id: `${m}-${r}-${c}`,
+                machineId: m, machineNum: m,
+                row: r, col: c,
+                coordNum: `${displayCol}-${r}`,
+                isLocked: false, productName: '', price: 0, insertedAmount: 0
+            });
+        }
+    }
 }
 
 // レンダリング
@@ -155,7 +161,6 @@ function renderLockers() {
         const el = document.createElement('div');
         let classes = 'locker';
         if (locker.isLocked) classes += ' locked';
-        // コピーモード中は空きロッカーをハイライト
         if (state.copyMode && !locker.isLocked) classes += ' copy-target';
         el.className = classes;
         el.dataset.id = locker.id;
@@ -163,7 +168,7 @@ function renderLockers() {
 
         const idSpan = document.createElement('span');
         idSpan.className = 'locker-id';
-        idSpan.textContent = `${locker.row}-${locker.col}`;
+        idSpan.textContent = locker.coordNum;
 
         const contentDiv = document.createElement('div');
         contentDiv.style.textAlign = 'center';
@@ -716,10 +721,7 @@ async function fetchFromCloud(silent = false) {
 
     // 他の操作が行われている最中、または操作直後（5秒以内）は読み込まない
     if (state.isSyncing) return;
-    if (Date.now() - state.lastLocalEditTime < 5000) {
-        if (!silent) console.log('Sync skipped: cooldown');
-        return;
-    }
+    if (Date.now() - state.lastLocalEditTime < 5000) return;
 
     if (!silent) console.log('Fetching from cloud...');
 
@@ -735,6 +737,18 @@ async function fetchFromCloud(silent = false) {
         }
 
         if (cloudData && cloudData.lockers) {
+            // 他ユーザーのアクティビティ確認 (1分以内)
+            if (cloudData.lastActiveTime) {
+                const diff = Date.now() - cloudData.lastActiveTime;
+                state.otherUserActive = diff < 60000;
+                document.getElementById('activity-warning').classList.toggle('hidden', !state.otherUserActive);
+            }
+
+            // 設定の同期
+            if (cloudData.oneClickMode !== undefined) {
+                state.oneClickMode = cloudData.oneClickMode;
+            }
+
             // ローカルデータをクラウドのもので更新
             state.data.lockers = cloudData.lockers || [];
             state.data.sales = cloudData.sales || [];
@@ -744,7 +758,6 @@ async function fetchFromCloud(silent = false) {
             // データが空（初回同期など）の場合は初期化
             initLockers();
 
-            // ローカルのみのURL設定は維持
             saveDataLocally();
             renderApp();
             if (!silent) console.log('Cloud sync complete');
@@ -765,7 +778,8 @@ async function pushToCloud() {
         lockers: state.data.lockers,
         sales: state.data.sales,
         presets: state.data.presets,
-        machineCount: state.data.machineCount
+        machineCount: state.data.machineCount,
+        oneClickMode: state.oneClickMode
     };
 
     try {

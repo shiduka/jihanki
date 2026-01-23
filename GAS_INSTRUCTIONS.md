@@ -12,13 +12,12 @@
 
 ```javascript
 /*
- * 自動販売機アプリ用クラウド同期プログラム (GAS)
+ * 自動販売機アプリ用クラウド同期プログラム (GAS) - v2 (Heartbeat対応版)
  */
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // 3つのシートを準備（なければ作成）
   const lockerSheet = getOrCreateSheet(ss, "lockers");
   const salesSheet = getOrCreateSheet(ss, "sales");
   const metaSheet = getOrCreateSheet(ss, "meta");
@@ -27,7 +26,9 @@ function doGet(e) {
     lockers: getRowsAsObjects(lockerSheet),
     sales: getRowsAsObjects(salesSheet),
     presets: getMetaValue(metaSheet, "presets"),
-    machineCount: getMetaValue(metaSheet, "machineCount")
+    machineCount: getMetaValue(metaSheet, "machineCount"),
+    oneClickMode: getMetaValue(metaSheet, "oneClickMode"),
+    lastActiveTime: getMetaValue(metaSheet, "lastActiveTime") // 全体の最終操作
   };
   
   return ContentService.createTextOutput(JSON.stringify(result))
@@ -38,13 +39,16 @@ function doPost(e) {
   const params = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // シートを更新
-  updateSheetFromObjects(getOrCreateSheet(ss, "lockers"), params.lockers);
-  updateSheetFromObjects(getOrCreateSheet(ss, "sales"), params.sales);
+  if (params.lockers) updateSheetFromObjects(getOrCreateSheet(ss, "lockers"), params.lockers);
+  if (params.sales) updateSheetFromObjects(getOrCreateSheet(ss, "sales"), params.sales);
   
   const metaSheet = getOrCreateSheet(ss, "meta");
-  setMetaValue(metaSheet, "presets", params.presets);
-  setMetaValue(metaSheet, "machineCount", params.machineCount);
+  if (params.presets !== undefined) setMetaValue(metaSheet, "presets", params.presets);
+  if (params.machineCount !== undefined) setMetaValue(metaSheet, "machineCount", params.machineCount);
+  if (params.oneClickMode !== undefined) setMetaValue(metaSheet, "oneClickMode", params.oneClickMode);
+  
+  // 最終操作時刻を記録
+  setMetaValue(metaSheet, "lastActiveTime", Date.now());
   
   return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
     .setMimeType(ContentService.MimeType.JSON);
@@ -68,7 +72,6 @@ function getRowsAsObjects(sheet) {
     let obj = {};
     headers.forEach((h, i) => {
       let val = row[i];
-      // TypeScript/JSONで扱いやすいよう型変換
       if (h === 'isLocked') val = (val === true || val === "true");
       obj[h] = val;
     });
@@ -78,7 +81,7 @@ function getRowsAsObjects(sheet) {
 
 function updateSheetFromObjects(sheet, objects) {
   sheet.clear();
-  if (objects.length === 0) return;
+  if (!objects || objects.length === 0) return;
   const headers = Object.keys(objects[0]);
   sheet.appendRow(headers);
   const rows = objects.map(obj => headers.map(h => obj[h]));
@@ -87,6 +90,7 @@ function updateSheetFromObjects(sheet, objects) {
 
 function getMetaValue(sheet, key) {
   const data = sheet.getDataRange().getValues();
+  if (data.length === 0 || data[0][0] === "") return null;
   const row = data.find(r => r[0] === key);
   if (!row) return null;
   try { return JSON.parse(row[1]); } catch (e) { return row[1]; }

@@ -54,6 +54,32 @@
             box-shadow: var(--shadow);
         }
 
+        .activity-warning {
+            background: #fff3e0;
+            color: #ef6c00;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 8px;
+            border: 1px solid #ffe0b2;
+            margin-bottom: 5px;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
         .app-header {
             display: flex;
             flex-direction: column;
@@ -168,9 +194,11 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
+            direction: rtl;
         }
 
         .locker {
+            direction: ltr;
             aspect-ratio: 1;
             background: var(--locker-empty);
             border: 2px solid var(--locker-border);
@@ -699,6 +727,7 @@
 <body>
     <div id="app">
         <header class="app-header">
+            <div id="activity-warning" class="activity-warning hidden">⚠️ 他のユーザーが操作中かもしれません</div>
             <h1>自動販売機管理</h1>
             <div class="mode-switch">
                 <button id="mode-seller" class="mode-btn active">販売者</button>
@@ -819,12 +848,16 @@
                     <hr>
                     <div class="setting-item">
                         <p>クラウド同期（Googleスプレッドシート）</p>
-                        <div class="cloud-setting">
-                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURLを貼り付け">
+                        <div id="cloud-url-display-area" class="cloud-setting">
+                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURL" readonly>
+                            <button id="edit-cloud-url-btn" class="action-btn primary">編集</button>
+                        </div>
+                        <div id="cloud-url-edit-area" class="cloud-setting hidden">
+                            <input type="text" id="cloud-url-edit-input" placeholder="URLを貼り付け">
                             <button id="save-cloud-url-btn" class="action-btn success">保存</button>
                         </div>
                         <button id="manual-sync-btn" class="action-btn primary" style="margin-top: 5px;">今すぐ同期</button>
-                        <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。手順は「データ」タブの手順書を確認してください。</p>
+                        <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。</p>
                     </div>
                     <hr>
                     <div class="setting-item">
@@ -945,26 +978,34 @@
         }
 
         function initLockers() {
-            const existingMachineIds = new Set(state.data.lockers.map(l => l.machineId));
-            for (let m = 1; m <= state.data.machineCount; m++) {
-                if (!existingMachineIds.has(m)) {
-                    for (let r = 1; r <= TOTAL_ROWS; r++) {
-                        for (let c = 1; c <= TOTAL_COLS; c++) {
-                            state.data.lockers.push({
-                                id: `${m}-${r}-${c}`,
-                                machineId: m,
-                                row: r,
-                                col: c,
-                                isLocked: false,
-                                productName: '',
-                                price: 0,
-                                insertedAmount: 0
-                            });
-                        }
-                    }
+            const needsReset = state.data.lockers.length === 0 || !state.data.lockers[0].coordNum;
+            if (needsReset) {
+                state.data.lockers = [];
+                for (let m = 1; m <= state.data.machineCount; m++) {
+                    createLockers(m);
+                }
+            } else {
+                const existingMachineIds = new Set(state.data.lockers.map(l => l.machineId));
+                for (let m = 1; m <= state.data.machineCount; m++) {
+                    if (!existingMachineIds.has(m)) createLockers(m);
                 }
             }
-            saveData();
+            saveDataLocally();
+        }
+
+        function createLockers(m) {
+            for (let c = 3; c >= 1; c--) {
+                const displayCol = 4 - c;
+                for (let r = 1; r <= TOTAL_ROWS; r++) {
+                    state.data.lockers.push({
+                        id: `${m}-${r}-${c}`,
+                        machineId: m, machineNum: m,
+                        row: r, col: c,
+                        coordNum: `${displayCol}-${r}`,
+                        isLocked: false, productName: '', price: 0, insertedAmount: 0
+                    });
+                }
+            }
         }
 
         function renderApp() {
@@ -1522,7 +1563,8 @@
                 lockers: state.data.lockers,
                 sales: state.data.sales,
                 presets: state.data.presets,
-                machineCount: state.data.machineCount
+                machineCount: state.data.machineCount,
+                oneClickMode: state.oneClickMode
             };
             try {
                 await fetch(state.data.cloudUrl, {

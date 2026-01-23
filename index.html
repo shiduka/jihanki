@@ -14,6 +14,7 @@
 <body>
     <div id="app">
         <header class="app-header">
+            <div id="activity-warning" class="activity-warning hidden">⚠️ 他のユーザーが操作中かもしれません</div>
             <h1>自動販売機管理</h1>
             <div class="mode-switch">
                 <button id="mode-seller" class="mode-btn active">販売者</button>
@@ -144,8 +145,12 @@
                     <hr>
                     <div class="setting-item">
                         <p>クラウド同期（Googleスプレッドシート）</p>
-                        <div class="cloud-setting">
-                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURLを貼り付け">
+                        <div id="cloud-url-display-area" class="cloud-setting">
+                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURL" readonly>
+                            <button id="edit-cloud-url-btn" class="action-btn primary">編集</button>
+                        </div>
+                        <div id="cloud-url-edit-area" class="cloud-setting hidden">
+                            <input type="text" id="cloud-url-edit-input" placeholder="URLを貼り付け">
                             <button id="save-cloud-url-btn" class="action-btn success">保存</button>
                         </div>
                         <button id="manual-sync-btn" class="action-btn primary" style="margin-top: 5px;">今すぐ同期</button>

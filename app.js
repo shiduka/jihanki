@@ -612,7 +612,7 @@ function processBulkPurchase() {
 
     // 各商品を売上に計上
     machineLockers.forEach(locker => {
-        addSalesRecord(locker.productName, locker.price, locker.machineId);
+        addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum);
         updateLocker(locker.id, {
             isLocked: false,
             productName: '',
@@ -657,7 +657,7 @@ function processPurchase() {
     const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
     if (!locker) return;
 
-    addSalesRecord(locker.productName, locker.price, locker.machineId);
+    addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum);
 
     // ロッカーを空にする
     updateLocker(state.selectedLockerId, {

@@ -12,7 +12,7 @@
 
 ```javascript
 /*
- * 自動販売機アプリ用クラウド同期プログラム (GAS) - v2.2 (書式強制指定版)
+ * 自動販売機アプリ用クラウド同期プログラム (GAS) - v2.3 (列自動拡張版)
  */
 
 function doGet(e) {
@@ -85,7 +85,14 @@ function getRowsAsObjects(sheet) {
 function updateSheetFromObjects(sheet, objects) {
   sheet.clear();
   if (!objects || objects.length === 0) return;
-  const headers = Object.keys(objects[0]);
+  
+  // 全データからヘッダー（列名）を収集
+  const headerSet = {};
+  objects.forEach(obj => {
+    Object.keys(obj).forEach(key => { headerSet[key] = true; });
+  });
+  const headers = Object.keys(headerSet);
+  
   sheet.appendRow(headers);
   const rows = objects.map(obj => headers.map(h => obj[h]));
   const range = sheet.getRange(2, 1, rows.length, headers.length);

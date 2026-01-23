@@ -1444,7 +1444,7 @@
         function processPurchase() {
             const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
             if (!locker) return;
-            addSalesRecord(locker.productName, locker.price, locker.machineId);
+            addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum);
             updateLocker(state.selectedLockerId, {
                 isLocked: false,
                 productName: '',

@@ -100,15 +100,15 @@ function initLockers() {
 }
 
 function createLockersForMachine(m) {
-    // グリッドは行(row)ごとに埋まるため、row-majorで生成する
-    // c=1:右, c=2:中, c=3:左 (CSSのdirection:rtlにより)
+    // 【決定版】標準の左から右(LTR)の並び順を使用します。
+    // 配列の順序を [3列目, 2列目, 1列目] とすることで、物理的に右端が 1番列 になります。
     for (let r = 1; r <= TOTAL_ROWS; r++) {
-        for (let c = 1; c <= 3; c++) {
+        for (let c = 3; c >= 1; c--) {
             state.data.lockers.push({
                 id: `${m}-${r}-${c}`,
                 machineId: m, machineNum: m,
                 row: r, col: c,
-                coordNum: `${c}-${r}`, // 右上が1-1, 左上が3-1
+                coordNum: `${c}-${r}`,
                 isLocked: false, productName: '', price: 0, insertedAmount: 0
             });
         }
@@ -764,7 +764,15 @@ async function fetchFromCloud(silent = false) {
             }
 
             // ローカルデータをクラウドのもので更新
-            state.data.lockers = cloudData.lockers || [];
+            state.data.lockers = (cloudData.lockers || []).map(l => {
+                // 日付として化けている場合の補正（もしGAS側で失敗してもここで救う）
+                if (l.coordNum && typeof l.coordNum === 'string' && l.coordNum.includes('-')) {
+                    // OK
+                } else if (l.row && l.col) {
+                    l.coordNum = `${l.col}-${l.row}`;
+                }
+                return l;
+            });
             state.data.sales = cloudData.sales || [];
             state.data.presets = cloudData.presets || state.data.presets;
             state.data.machineCount = cloudData.machineCount || state.data.machineCount;

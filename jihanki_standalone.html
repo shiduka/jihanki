@@ -194,11 +194,9 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
-            direction: rtl;
         }
 
         .locker {
-            direction: ltr;
             aspect-ratio: 1;
             background: var(--locker-empty);
             border: 2px solid var(--locker-border);
@@ -1534,25 +1532,30 @@
                     state.isSyncing = false;
                     return;
                 }
-                if (cloudData && cloudData.lockers) {
-                    state.data.lockers = cloudData.lockers || [];
-                    state.data.sales = cloudData.sales || [];
-                    state.data.presets = cloudData.presets || state.data.presets;
-                    state.data.machineCount = cloudData.machineCount || state.data.machineCount;
+                // ローカルデータをクラウドのもので更新
+                state.data.lockers = (cloudData.lockers || []).map(l => {
+                    if (!(l.coordNum && typeof l.coordNum === 'string' && l.coordNum.includes('-'))) {
+                        if (l.row && l.col) l.coordNum = `${l.col}-${l.row}`;
+                    }
+                    return l;
+                });
+                state.data.sales = cloudData.sales || [];
+                state.data.presets = cloudData.presets || state.data.presets;
+                state.data.machineCount = cloudData.machineCount || state.data.machineCount;
 
-                    // データが空なら初期化
-                    initLockers();
+                // データが空なら初期化
+                initLockers();
 
-                    saveDataLocally();
-                    renderApp();
-                    if (!silent) console.log('Cloud sync complete');
-                }
-            } catch (err) {
-                console.error('Cloud fetch error:', err);
-                if (!silent) alert('クラウドからのデータ取得に失敗しました。');
-            } finally {
-                state.isSyncing = false;
+                saveDataLocally();
+                renderApp();
+                if (!silent) console.log('Cloud sync complete');
             }
+            } catch (err) {
+            console.error('Cloud fetch error:', err);
+            if (!silent) alert('クラウドからのデータ取得に失敗しました。');
+        } finally {
+            state.isSyncing = false;
+        }
         }
 
         async function pushToCloud() {

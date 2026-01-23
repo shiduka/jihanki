@@ -31,7 +31,9 @@ let state = {
     copyProduct: null, // { productName, price }
     // ワンクリック購入
     oneClickMode: false,
-    lastPurchase: null // { lockerId, saleId } - Undo用
+    lastPurchase: null, // { lockerId, saleId } - Undo用
+    isSyncing: false,       // 送信中フラグ
+    lastLocalEditTime: 0    // 最終操作時刻
 };
 
 // 初期化
@@ -71,6 +73,7 @@ function loadData() {
 }
 
 function saveData() {
+    state.lastLocalEditTime = Date.now(); // 操作時刻を記録
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
     // クラウド設定があれば送信
     if (state.data.cloudUrl) {
@@ -711,11 +714,25 @@ window.undoPurchase = function () {
 async function fetchFromCloud(silent = false) {
     if (!state.data.cloudUrl) return;
 
+    // 他の操作が行われている最中、または操作直後（5秒以内）は読み込まない
+    if (state.isSyncing) return;
+    if (Date.now() - state.lastLocalEditTime < 5000) {
+        if (!silent) console.log('Sync skipped: cooldown');
+        return;
+    }
+
     if (!silent) console.log('Fetching from cloud...');
 
     try {
+        state.isSyncing = true;
         const response = await fetch(state.data.cloudUrl);
         const cloudData = await response.json();
+
+        // 受信中にもしローカルで操作があったら、そのデータは破棄して中断（ローカル優先）
+        if (Date.now() - state.lastLocalEditTime < 3000) {
+            state.isSyncing = false;
+            return;
+        }
 
         if (cloudData && cloudData.lockers) {
             // ローカルデータをクラウドのもので更新
@@ -735,12 +752,15 @@ async function fetchFromCloud(silent = false) {
     } catch (err) {
         console.error('Cloud fetch error:', err);
         if (!silent) alert('クラウドからのデータ取得に失敗しました。URLを確認してください。');
+    } finally {
+        state.isSyncing = false;
     }
 }
 
 async function pushToCloud() {
     if (!state.data.cloudUrl) return;
 
+    state.isSyncing = true;
     const payload = {
         lockers: state.data.lockers,
         sales: state.data.sales,
@@ -760,6 +780,8 @@ async function pushToCloud() {
         console.log('Pushed to cloud');
     } catch (err) {
         console.error('Cloud push error:', err);
+    } finally {
+        state.isSyncing = false;
     }
 }
 

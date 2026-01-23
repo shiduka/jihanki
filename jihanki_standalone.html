@@ -898,7 +898,9 @@
             copyMode: false,
             copyProduct: null,
             oneClickMode: false,
-            lastPurchase: null
+            lastPurchase: null,
+            isSyncing: false,       // 送信中フラグ
+            lastLocalEditTime: 0    // 最終操作時刻
         };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -935,6 +937,7 @@
         }
 
         function saveData() {
+            state.lastLocalEditTime = Date.now(); // 操作時刻を記録
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
             if (state.data.cloudUrl) {
                 pushToCloud();
@@ -1475,10 +1478,22 @@
 
         async function fetchFromCloud(silent = false) {
             if (!state.data.cloudUrl) return;
+
+            // 操作中、または操作直後（5秒以内）は読み込まない
+            if (state.isSyncing) return;
+            if (Date.now() - state.lastLocalEditTime < 5000) return;
+
             if (!silent) console.log('Fetching from cloud...');
             try {
+                state.isSyncing = true;
                 const response = await fetch(state.data.cloudUrl);
                 const cloudData = await response.json();
+
+                // 受信中にもし操作があったら破棄
+                if (Date.now() - state.lastLocalEditTime < 3000) {
+                    state.isSyncing = false;
+                    return;
+                }
                 if (cloudData && cloudData.lockers) {
                     state.data.lockers = cloudData.lockers || [];
                     state.data.sales = cloudData.sales || [];
@@ -1495,11 +1510,14 @@
             } catch (err) {
                 console.error('Cloud fetch error:', err);
                 if (!silent) alert('クラウドからのデータ取得に失敗しました。');
+            } finally {
+                state.isSyncing = false;
             }
         }
 
         async function pushToCloud() {
             if (!state.data.cloudUrl) return;
+            state.isSyncing = true;
             const payload = {
                 lockers: state.data.lockers,
                 sales: state.data.sales,
@@ -1516,6 +1534,8 @@
                 console.log('Pushed to cloud');
             } catch (err) {
                 console.error('Cloud push error:', err);
+            } finally {
+                state.isSyncing = false;
             }
         }
 

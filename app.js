@@ -943,9 +943,10 @@ function renderAdminSales() {
 // グローバルスコープに公開（HTMLのonclickから呼ぶため）
 window.deleteSale = function (id) {
     if (!confirm('この売上記録を削除しますか？')) return;
-    state.data.sales = state.data.sales.filter(s => s.id !== id);
+    // クラウド経由でIDが文字列になっている場合があるため、文字列に変換して比較する
+    state.data.sales = state.data.sales.filter(s => String(s.id) !== String(id));
     saveData();
-    renderApp(); // ホーム画面のサマリーも更新
+    renderApp();
 };
 
 function clearAllSales() {

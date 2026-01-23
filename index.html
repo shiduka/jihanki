@@ -134,20 +134,30 @@
 
                 <div id="tab-machines" class="tab-content">
                     <div class="setting-item">
-                        <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
-                        <div class="machine-actions">
-                            <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
-                            <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="setting-item">
                         <label class="toggle-container">
                             <span>ワンクリック購入モード</span>
                             <input type="checkbox" id="one-click-toggle">
                             <span class="checkmark"></span>
                         </label>
                         <p class="setting-desc">購入時に投入金額の操作をスキップし、タップですぐにカギを開けます。</p>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p>クラウド同期（Googleスプレッドシート）</p>
+                        <div class="cloud-setting">
+                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURLを貼り付け">
+                            <button id="save-cloud-url-btn" class="action-btn success">保存</button>
+                        </div>
+                        <button id="manual-sync-btn" class="action-btn primary" style="margin-top: 5px;">今すぐ同期</button>
+                        <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。手順は「データ」タブの手順書を確認してください。</p>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
+                        <div class="machine-actions">
+                            <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
+                            <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                        </div>
                     </div>
                 </div>
 

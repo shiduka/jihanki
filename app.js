@@ -17,7 +17,8 @@ let state = {
         lockers: [], // { id, machineId, row, col, isLocked, productName, price, insertedAmount }
         sales: [],   // { id, date, productName, price, machineId }
         presets: [...DEFAULT_PRESETS],
-        machineCount: 2 // 自販機の台数
+        machineCount: 2, // 自販機の台数
+        cloudUrl: ''     // GAS WebアプリのURL
     },
     // UI状態（保存しない）
     currentMachine: 1,
@@ -39,6 +40,18 @@ document.addEventListener('DOMContentLoaded', () => {
     initLockers();
     renderApp();
     setupEventListeners();
+
+    // クラウド設定があれば初回同期
+    if (state.data.cloudUrl) {
+        fetchFromCloud();
+    }
+
+    // 定期同期設定 (30秒ごと)
+    setInterval(() => {
+        if (state.data.cloudUrl && !state.copyMode) {
+            fetchFromCloud(true); // サイレント更新
+        }
+    }, 30000);
 });
 
 function loadData() {
@@ -59,6 +72,10 @@ function loadData() {
 
 function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+    // クラウド設定があれば送信
+    if (state.data.cloudUrl) {
+        pushToCloud();
+    }
 }
 
 function initLockers() {
@@ -284,6 +301,25 @@ function setupEventListeners() {
 
     // 全売上削除
     document.getElementById('clear-all-sales-btn').onclick = clearAllSales;
+
+    // クラウドURL保存
+    document.getElementById('save-cloud-url-btn').onclick = () => {
+        const url = document.getElementById('cloud-url-input').value.trim();
+        state.data.cloudUrl = url;
+        saveData();
+        if (url) {
+            alert('クラウドURLを保存しました。同期を開始します。');
+            fetchFromCloud();
+        } else {
+            alert('クラウド同期を解除しました（ローカル保存のみになります）。');
+        }
+    };
+
+    // 手動同期
+    document.getElementById('manual-sync-btn').onclick = () => {
+        if (!state.data.cloudUrl) return alert('クラウドURLが設定されていません');
+        fetchFromCloud();
+    };
 }
 
 // アクションロジック
@@ -670,6 +706,65 @@ window.undoPurchase = function () {
 };
 
 
+// -- クラウド通信ロジック --
+
+async function fetchFromCloud(silent = false) {
+    if (!state.data.cloudUrl) return;
+
+    if (!silent) console.log('Fetching from cloud...');
+
+    try {
+        const response = await fetch(state.data.cloudUrl);
+        const cloudData = await response.json();
+
+        if (cloudData && cloudData.lockers) {
+            // ローカルデータをクラウドのもので更新
+            state.data.lockers = cloudData.lockers;
+            state.data.sales = cloudData.sales;
+            state.data.presets = cloudData.presets || state.data.presets;
+            state.data.machineCount = cloudData.machineCount || state.data.machineCount;
+
+            // ローカルのみのURL設定は維持
+            saveDataLocally();
+            renderApp();
+            if (!silent) console.log('Cloud sync complete');
+        }
+    } catch (err) {
+        console.error('Cloud fetch error:', err);
+        if (!silent) alert('クラウドからのデータ取得に失敗しました。URLを確認してください。');
+    }
+}
+
+async function pushToCloud() {
+    if (!state.data.cloudUrl) return;
+
+    const payload = {
+        lockers: state.data.lockers,
+        sales: state.data.sales,
+        presets: state.data.presets,
+        machineCount: state.data.machineCount
+    };
+
+    try {
+        await fetch(state.data.cloudUrl, {
+            method: 'POST',
+            mode: 'no-cors', // GASへのPOSTはno-corsが必要な場合がある
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        console.log('Pushed to cloud');
+    } catch (err) {
+        console.error('Cloud push error:', err);
+    }
+}
+
+function saveDataLocally() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+}
+
+
 // -- 共通・ヘルパー --
 
 function updateLocker(id, Updates) {
@@ -809,6 +904,7 @@ window.removePreset = function (index) {
 function renderMachineSettings() {
     document.getElementById('machine-count').textContent = state.data.machineCount;
     document.getElementById('one-click-toggle').checked = state.oneClickMode;
+    document.getElementById('cloud-url-input').value = state.data.cloudUrl || '';
 }
 
 function renderDataSettings() {

@@ -625,6 +625,26 @@
             transform: translateX(24px);
         }
 
+        .cloud-setting {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .cloud-setting input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .cloud-setting .action-btn {
+            width: auto;
+            margin: 0;
+            padding: 10px 15px;
+        }
+
         /* Undo Notification */
         .undo-notification {
             position: fixed;
@@ -789,20 +809,30 @@
 
                 <div id="tab-machines" class="tab-content">
                     <div class="setting-item">
-                        <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
-                        <div class="machine-actions">
-                            <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
-                            <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="setting-item">
                         <label class="toggle-container">
                             <span>ワンクリック購入モード</span>
                             <input type="checkbox" id="one-click-toggle">
                             <span class="checkmark"></span>
                         </label>
                         <p class="setting-desc">購入時に投入金額の操作をスキップし、タップですぐにカギを開けます。</p>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p>クラウド同期（Googleスプレッドシート）</p>
+                        <div class="cloud-setting">
+                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURLを貼り付け">
+                            <button id="save-cloud-url-btn" class="action-btn success">保存</button>
+                        </div>
+                        <button id="manual-sync-btn" class="action-btn primary" style="margin-top: 5px;">今すぐ同期</button>
+                        <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。手順は「データ」タブの手順書を確認してください。</p>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
+                        <div class="machine-actions">
+                            <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
+                            <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                        </div>
                     </div>
                 </div>
 
@@ -828,6 +858,13 @@
                     </div>
                     <hr>
                     <div class="setting-item">
+                        <p><strong>クラウド同期の設定方法:</strong><br>
+                            1. Googleスプレッドシートを作成し、拡張機能のApps Scriptに専用コードを貼り付けます。<br>
+                            2. Webアプリとしてデプロイし、発行されたURLを「自販機設定」タブに入力してください。<br>
+                            ※詳細は <code>GAS_INSTRUCTIONS.md</code> を参照してください。</p>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
                         <p class="text-danger">⚠️ 売上履歴をリセットします（在庫は維持されます）。</p>
                         <button id="clear-all-sales-btn" class="action-btn danger">売上データをすべて削除</button>
                     </div>
@@ -838,22 +875,20 @@
     </div>
 
     <script>
-        /**
-         * 自動販売機管理アプリ（単一ファイル版）
-         */
-
         const STORAGE_KEY = 'vending_machine_data';
         const DEFAULT_PRESETS = ['大玉トマト', '中玉トマト', 'ミニトマト', 'レタス', 'いちご', 'キュウリ'];
         const TOTAL_ROWS = 6;
         const TOTAL_COLS = 3;
         const PRICE_OPTIONS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 
+        // 状態管理
         let state = {
             data: {
                 lockers: [],
                 sales: [],
                 presets: [...DEFAULT_PRESETS],
-                machineCount: 2
+                machineCount: 2,
+                cloudUrl: '' // クラウド同期URL
             },
             currentMachine: 1,
             mode: 'seller',
@@ -861,7 +896,9 @@
             tempPrice: 100,
             tempAmount: 0,
             copyMode: false,
-            copyProduct: null
+            copyProduct: null,
+            oneClickMode: false,
+            lastPurchase: null
         };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -869,6 +906,18 @@
             initLockers();
             renderApp();
             setupEventListeners();
+
+            // クラウド設定があれば初回同期
+            if (state.data.cloudUrl) {
+                fetchFromCloud();
+            }
+
+            // 定期同期設定 (30秒ごと)
+            setInterval(() => {
+                if (state.data.cloudUrl && !state.copyMode) {
+                    fetchFromCloud(true);
+                }
+            }, 30000);
         });
 
         function loadData() {
@@ -887,6 +936,9 @@
 
         function saveData() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+            if (state.data.cloudUrl) {
+                pushToCloud();
+            }
         }
 
         function initLockers() {
@@ -1417,6 +1469,55 @@
             renderApp();
             alert('購入を取り消しました');
         };
+
+
+        // -- クラウド通信ロジック --
+
+        async function fetchFromCloud(silent = false) {
+            if (!state.data.cloudUrl) return;
+            if (!silent) console.log('Fetching from cloud...');
+            try {
+                const response = await fetch(state.data.cloudUrl);
+                const cloudData = await response.json();
+                if (cloudData && cloudData.lockers) {
+                    state.data.lockers = cloudData.lockers;
+                    state.data.sales = cloudData.sales;
+                    state.data.presets = cloudData.presets || state.data.presets;
+                    state.data.machineCount = cloudData.machineCount || state.data.machineCount;
+                    saveDataLocally();
+                    renderApp();
+                    if (!silent) console.log('Cloud sync complete');
+                }
+            } catch (err) {
+                console.error('Cloud fetch error:', err);
+                if (!silent) alert('クラウドからのデータ取得に失敗しました。');
+            }
+        }
+
+        async function pushToCloud() {
+            if (!state.data.cloudUrl) return;
+            const payload = {
+                lockers: state.data.lockers,
+                sales: state.data.sales,
+                presets: state.data.presets,
+                machineCount: state.data.machineCount
+            };
+            try {
+                await fetch(state.data.cloudUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                console.log('Pushed to cloud');
+            } catch (err) {
+                console.error('Cloud push error:', err);
+            }
+        }
+
+        function saveDataLocally() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+        }
 
         function updateLocker(id, Updates) {
             const idx = state.data.lockers.findIndex(l => l.id === id);

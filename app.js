@@ -780,21 +780,22 @@ async function fetchFromCloud(silent = false) {
                 state.oneClickMode = (cloudData.oneClickMode === true || cloudData.oneClickMode === "true");
             }
 
-            // ローカルデータをクラウドのもので更新
+            // ローカルデータをクラウドのもので更新（日付化対策 & ソート強制）
             state.data.lockers = (cloudData.lockers || []).map(l => {
-                // 日付として化けている場合の補正（もしGAS側で失敗してもここで救う）
-                if (l.coordNum && typeof l.coordNum === 'string' && l.coordNum.includes('-')) {
-                    // OK
-                } else if (l.row && l.col) {
-                    l.coordNum = `${l.col}-${l.row}`;
+                if (!(l.coordNum && typeof l.coordNum === 'string' && l.coordNum.includes('-'))) {
+                    if (l.row && l.col) l.coordNum = `${l.col}-${l.row}`;
                 }
+                l.machineId = parseInt(l.machineId);
+                l.row = parseInt(l.row);
+                l.col = parseInt(l.col);
                 return l;
             });
+            sortLockersCorrectly(); // ここで強制ソート
+
             state.data.sales = cloudData.sales || [];
             state.data.presets = cloudData.presets || state.data.presets;
-            state.data.machineCount = cloudData.machineCount || state.data.machineCount;
+            state.data.machineCount = parseInt(cloudData.machineCount) || state.data.machineCount;
 
-            // データが空（初回同期など）の場合は初期化
             initLockers();
 
             saveDataLocally();

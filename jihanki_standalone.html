@@ -1480,10 +1480,14 @@
                 const response = await fetch(state.data.cloudUrl);
                 const cloudData = await response.json();
                 if (cloudData && cloudData.lockers) {
-                    state.data.lockers = cloudData.lockers;
-                    state.data.sales = cloudData.sales;
+                    state.data.lockers = cloudData.lockers || [];
+                    state.data.sales = cloudData.sales || [];
                     state.data.presets = cloudData.presets || state.data.presets;
                     state.data.machineCount = cloudData.machineCount || state.data.machineCount;
+
+                    // データが空なら初期化
+                    initLockers();
+
                     saveDataLocally();
                     renderApp();
                     if (!silent) console.log('Cloud sync complete');

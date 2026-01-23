@@ -719,10 +719,13 @@ async function fetchFromCloud(silent = false) {
 
         if (cloudData && cloudData.lockers) {
             // ローカルデータをクラウドのもので更新
-            state.data.lockers = cloudData.lockers;
-            state.data.sales = cloudData.sales;
+            state.data.lockers = cloudData.lockers || [];
+            state.data.sales = cloudData.sales || [];
             state.data.presets = cloudData.presets || state.data.presets;
             state.data.machineCount = cloudData.machineCount || state.data.machineCount;
+
+            // データが空（初回同期など）の場合は初期化
+            initLockers();
 
             // ローカルのみのURL設定は維持
             saveDataLocally();

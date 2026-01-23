@@ -677,7 +677,7 @@ function processPurchase() {
 
 function processQuickPurchase(locker) {
     const saleId = Date.now() + Math.random();
-    addSalesRecord(locker.productName, locker.price, locker.machineId, saleId);
+    addSalesRecord(locker.productName, locker.price, locker.machineId, saleId, locker.machineNum, locker.coordNum);
 
     // ロッカーを空にする
     updateLocker(locker.id, {
@@ -862,13 +862,15 @@ function getJSTDateTime() {
     return jstNow.toISOString().replace('T', ' ').replace(/\..+/, '');
 }
 
-function addSalesRecord(name, price, machineId, id = null) {
+function addSalesRecord(name, price, machineId, id = null, machineNum = null, coordNum = null) {
     state.data.sales.push({
         id: id || (Date.now() + Math.random()),
-        date: getJSTDateTime(), // UTC の toISOString() ではなく日本時間を使用
+        date: getJSTDateTime(),
         productName: name,
         price: price,
-        machineId: machineId
+        machineId: machineId,
+        machineNum: machineNum,
+        coordNum: coordNum
     });
 }
 
@@ -928,9 +930,10 @@ function renderAdminSales() {
         const d = new Date(sale.date);
         const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+        const locInfo = sale.coordNum ? `<small style="color:#888">[自販機${sale.machineNum || sale.machineId} ${sale.coordNum}]</small>` : '';
         tr.innerHTML = `
             <td>${dateStr}</td>
-            <td>${escapeHtml(sale.productName)}</td>
+            <td>${escapeHtml(sale.productName)} ${locInfo}</td>
             <td>¥${sale.price}</td>
             <td><button class="delete-record-btn" onclick="deleteSale(${sale.id})">削除</button></td>
         `;

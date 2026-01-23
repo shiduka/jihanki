@@ -156,7 +156,6 @@ body {
     display: none;
 }
 
-/* Locker Grid */
 .locker-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

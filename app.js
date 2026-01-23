@@ -27,7 +27,10 @@ let state = {
     tempAmount: 0, // 購入時の投入金額
     // コピーモード
     copyMode: false,
-    copyProduct: null // { productName, price }
+    copyProduct: null, // { productName, price }
+    // ワンクリック購入
+    oneClickMode: false,
+    lastPurchase: null // { lockerId, saleId } - Undo用
 };
 
 // 初期化
@@ -96,6 +99,7 @@ function renderApp() {
     renderAdminSales();
     renderAdminPresets();
     renderMachineSettings();
+    renderDataSettings();
 }
 
 function renderHeader() {
@@ -271,6 +275,15 @@ function setupEventListeners() {
 
     // 売上期間切り替え
     document.getElementById('sales-period').onchange = renderAdminSales;
+
+    // ワンクリック購入切り替え
+    document.getElementById('one-click-toggle').onchange = (e) => {
+        state.oneClickMode = e.target.checked;
+        saveData();
+    };
+
+    // 全売上削除
+    document.getElementById('clear-all-sales-btn').onclick = clearAllSales;
 }
 
 // アクションロジック
@@ -311,9 +324,12 @@ function handleLockerClick(locker) {
         openSellerModal(locker);
     } else {
         if (locker.isLocked) {
-            openBuyerModal(locker);
+            if (state.oneClickMode) {
+                processQuickPurchase(locker);
+            } else {
+                openBuyerModal(locker);
+            }
         }
-        // 購入者モードで空きロッカーを押しても何もしない
     }
 }
 
@@ -582,6 +598,77 @@ function processPurchase() {
     alert('ありがとうございます！商品をお取りください。');
 }
 
+// -- ワンクリック購入 (Quick Purchase) --
+
+function processQuickPurchase(locker) {
+    const saleId = Date.now() + Math.random();
+    addSalesRecord(locker.productName, locker.price, locker.machineId, saleId);
+
+    // ロッカーを空にする
+    updateLocker(locker.id, {
+        isLocked: false,
+        productName: '',
+        price: 0,
+        insertedAmount: 0
+    });
+
+    // Undo用に記録
+    state.lastPurchase = {
+        lockerId: locker.id,
+        saleId: saleId,
+        productName: locker.productName,
+        price: locker.price,
+        machineId: locker.machineId
+    };
+
+    saveData();
+    renderApp();
+    showUndoNotification();
+}
+
+function showUndoNotification() {
+    const existing = document.getElementById('undo-notification');
+    if (existing) existing.remove();
+
+    const el = document.createElement('div');
+    el.id = 'undo-notification';
+    el.className = 'undo-notification';
+    el.innerHTML = `
+        <span>購入しました</span>
+        <button onclick="undoPurchase()">元に戻す</button>
+    `;
+    document.body.appendChild(el);
+
+    // 5秒後に消す
+    setTimeout(() => {
+        if (el.parentNode) el.remove();
+    }, 5000);
+}
+
+window.undoPurchase = function () {
+    if (!state.lastPurchase) return;
+
+    const lp = state.lastPurchase;
+    // 売上記録を削除
+    state.data.sales = state.data.sales.filter(s => s.id !== lp.saleId);
+
+    // ロッカーを復元
+    updateLocker(lp.lockerId, {
+        isLocked: true,
+        productName: lp.productName,
+        price: lp.price,
+        insertedAmount: 0
+    });
+
+    state.lastPurchase = null;
+    const el = document.getElementById('undo-notification');
+    if (el) el.remove();
+
+    saveData();
+    renderApp();
+    alert('購入を取り消しました');
+};
+
 
 // -- 共通・ヘルパー --
 
@@ -592,9 +679,9 @@ function updateLocker(id, Updates) {
     }
 }
 
-function addSalesRecord(name, price, machineId) {
+function addSalesRecord(name, price, machineId, id = null) {
     state.data.sales.push({
-        id: Date.now() + Math.random(), // 一括購入時に同時刻でも重複しないように
+        id: id || (Date.now() + Math.random()),
         date: new Date().toISOString(),
         productName: name,
         price: price,
@@ -675,8 +762,16 @@ window.deleteSale = function (id) {
     if (!confirm('この売上記録を削除しますか？')) return;
     state.data.sales = state.data.sales.filter(s => s.id !== id);
     saveData();
-    renderAdminSales();
+    renderApp(); // ホーム画面のサマリーも更新
 };
+
+function clearAllSales() {
+    if (!confirm('すべての売上データを削除しますか？\n（テストデータの消去などに使用してください）')) return;
+    state.data.sales = [];
+    saveData();
+    renderApp();
+    alert('売上データをすべて削除しました');
+}
 
 function renderAdminPresets() {
     const list = document.getElementById('edit-preset-list');
@@ -713,6 +808,11 @@ window.removePreset = function (index) {
 
 function renderMachineSettings() {
     document.getElementById('machine-count').textContent = state.data.machineCount;
+    document.getElementById('one-click-toggle').checked = state.oneClickMode;
+}
+
+function renderDataSettings() {
+    // データ系のUI更新があればここ
 }
 
 function addMachine() {

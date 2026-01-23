@@ -133,10 +133,21 @@
                 </div>
 
                 <div id="tab-machines" class="tab-content">
-                    <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
-                    <div class="machine-actions">
-                        <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
-                        <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                    <div class="setting-item">
+                        <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
+                        <div class="machine-actions">
+                            <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
+                            <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <label class="toggle-container">
+                            <span>ワンクリック購入モード</span>
+                            <input type="checkbox" id="one-click-toggle">
+                            <span class="checkmark"></span>
+                        </label>
+                        <p class="setting-desc">購入時に投入金額の操作をスキップし、タップですぐにカギを開けます。</p>
                     </div>
                 </div>
 
@@ -151,13 +162,20 @@
                 </div>
 
                 <div id="tab-data" class="tab-content">
-                    <p>データをJSONファイルとして保存・復元できます。</p>
-                    <div class="data-actions">
-                        <button id="download-data-btn" class="action-btn primary">データをダウンロード</button>
-                        <div class="upload-area">
-                            <input type="file" id="upload-data-input" accept=".json">
-                            <button id="upload-data-btn" class="action-btn warning">データを取り込み</button>
+                    <div class="setting-item">
+                        <p>データをJSONファイルとして保存・復元できます。</p>
+                        <div class="data-actions">
+                            <button id="download-data-btn" class="action-btn primary">データをダウンロード</button>
+                            <div class="upload-area">
+                                <input type="file" id="upload-data-input" accept=".json">
+                                <button id="upload-data-btn" class="action-btn warning">データを取り込み</button>
+                            </div>
                         </div>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p class="text-danger">⚠️ 売上履歴をリセットします（在庫は維持されます）。</p>
+                        <button id="clear-all-sales-btn" class="action-btn danger">売上データをすべて削除</button>
                     </div>
                 </div>
             </div>

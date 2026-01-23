@@ -435,7 +435,70 @@ h2 {
     display: block;
 }
 
-/* Machine Settings */
+/* Machine Settings & General Settings */
+.setting-item {
+    padding: 15px 0;
+}
+
+.setting-desc {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 8px;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #eee;
+}
+
+.text-danger {
+    color: var(--danger-color);
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* Toggle Switch */
+.toggle-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.toggle-container input {
+    display: none;
+}
+
+.checkmark {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background-color: #ccc;
+    border-radius: 13px;
+    transition: background-color 0.2s;
+}
+
+.checkmark::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background-color: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+}
+
+input:checked+.checkmark {
+    background-color: var(--primary-color);
+}
+
+input:checked+.checkmark::after {
+    transform: translateX(24px);
+}
+
 .machine-actions {
     display: flex;
     flex-direction: column;
@@ -559,6 +622,35 @@ h2 {
     50% {
         border-color: #90CAF9;
     }
+}
+
+/* Undo Notification */
+.undo-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 0.95rem;
+}
+
+.undo-notification button {
+    background: var(--accent-color);
+    border: none;
+    color: #333;
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
 }
 
 /* スマホ向け微調整 */

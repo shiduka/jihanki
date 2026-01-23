@@ -561,6 +561,99 @@
             }
         }
 
+        /* Machine Settings & General Settings */
+        .setting-item {
+            padding: 15px 0;
+        }
+
+        .setting-desc {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #eee;
+        }
+
+        .text-danger {
+            color: var(--danger-color);
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .toggle-container input {
+            display: none;
+        }
+
+        .checkmark {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background-color: #ccc;
+            border-radius: 13px;
+            transition: background-color 0.2s;
+        }
+
+        .checkmark::after {
+            content: "";
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background-color: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+
+        input:checked+.checkmark {
+            background-color: var(--primary-color);
+        }
+
+        input:checked+.checkmark::after {
+            transform: translateX(24px);
+        }
+
+        /* Undo Notification */
+        .undo-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            font-size: 0.95rem;
+        }
+
+        .undo-notification button {
+            background: var(--accent-color);
+            border: none;
+            color: #333;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
         @media (max-width: 400px) {
             .locker-product {
                 font-size: 0.85rem;
@@ -695,10 +788,21 @@
                 </div>
 
                 <div id="tab-machines" class="tab-content">
-                    <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
-                    <div class="machine-actions">
-                        <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
-                        <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                    <div class="setting-item">
+                        <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
+                        <div class="machine-actions">
+                            <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
+                            <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <label class="toggle-container">
+                            <span>ワンクリック購入モード</span>
+                            <input type="checkbox" id="one-click-toggle">
+                            <span class="checkmark"></span>
+                        </label>
+                        <p class="setting-desc">購入時に投入金額の操作をスキップし、タップですぐにカギを開けます。</p>
                     </div>
                 </div>
 
@@ -712,13 +816,20 @@
                 </div>
 
                 <div id="tab-data" class="tab-content">
-                    <p>データをJSONファイルとして保存・復元できます。</p>
-                    <div class="data-actions">
-                        <button id="download-data-btn" class="action-btn primary">データをダウンロード</button>
-                        <div class="upload-area">
-                            <input type="file" id="upload-data-input" accept=".json">
-                            <button id="upload-data-btn" class="action-btn warning">データを取り込み</button>
+                    <div class="setting-item">
+                        <p>データをJSONファイルとして保存・復元できます。</p>
+                        <div class="data-actions">
+                            <button id="download-data-btn" class="action-btn primary">データをダウンロード</button>
+                            <div class="upload-area">
+                                <input type="file" id="upload-data-input" accept=".json">
+                                <button id="upload-data-btn" class="action-btn warning">データを取り込み</button>
+                            </div>
                         </div>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p class="text-danger">⚠️ 売上履歴をリセットします（在庫は維持されます）。</p>
+                        <button id="clear-all-sales-btn" class="action-btn danger">売上データをすべて削除</button>
                     </div>
                 </div>
             </div>
@@ -811,6 +922,7 @@
             renderAdminSales();
             renderAdminPresets();
             renderMachineSettings();
+            renderDataSettings();
         }
 
         function renderHeader() {
@@ -997,7 +1109,11 @@
                 openSellerModal(locker);
             } else {
                 if (locker.isLocked) {
-                    openBuyerModal(locker);
+                    if (state.oneClickMode) {
+                        processQuickPurchase(locker);
+                    } else {
+                        openBuyerModal(locker);
+                    }
                 }
             }
         }
@@ -1231,6 +1347,77 @@
             alert('ありがとうございます！商品をお取りください。');
         }
 
+        // -- ワンクリック購入 (Quick Purchase) --
+
+        function processQuickPurchase(locker) {
+            const saleId = Date.now() + Math.random();
+            addSalesRecord(locker.productName, locker.price, locker.machineId, saleId);
+
+            // ロッカーを空にする
+            updateLocker(locker.id, {
+                isLocked: false,
+                productName: '',
+                price: 0,
+                insertedAmount: 0
+            });
+
+            // Undo用に記録
+            state.lastPurchase = {
+                lockerId: locker.id,
+                saleId: saleId,
+                productName: locker.productName,
+                price: locker.price,
+                machineId: locker.machineId
+            };
+
+            saveData();
+            renderApp();
+            showUndoNotification();
+        }
+
+        function showUndoNotification() {
+            const existing = document.getElementById('undo-notification');
+            if (existing) existing.remove();
+
+            const el = document.createElement('div');
+            el.id = 'undo-notification';
+            el.className = 'undo-notification';
+            el.innerHTML = `
+                <span>購入しました</span>
+                <button onclick="undoPurchase()">元に戻す</button>
+            `;
+            document.body.appendChild(el);
+
+            // 5秒後に消す
+            setTimeout(() => {
+                if (el.parentNode) el.remove();
+            }, 5000);
+        }
+
+        window.undoPurchase = function () {
+            if (!state.lastPurchase) return;
+
+            const lp = state.lastPurchase;
+            // 売上記録を削除
+            state.data.sales = state.data.sales.filter(s => s.id !== lp.saleId);
+
+            // ロッカーを復元
+            updateLocker(lp.lockerId, {
+                isLocked: true,
+                productName: lp.productName,
+                price: lp.price,
+                insertedAmount: 0
+            });
+
+            state.lastPurchase = null;
+            const el = document.getElementById('undo-notification');
+            if (el) el.remove();
+
+            saveData();
+            renderApp();
+            alert('購入を取り消しました');
+        };
+
         function updateLocker(id, Updates) {
             const idx = state.data.lockers.findIndex(l => l.id === id);
             if (idx !== -1) {
@@ -1238,9 +1425,9 @@
             }
         }
 
-        function addSalesRecord(name, price, machineId) {
+        function addSalesRecord(name, price, machineId, id = null) {
             state.data.sales.push({
-                id: Date.now() + Math.random(),
+                id: id || (Date.now() + Math.random()),
                 date: new Date().toISOString(),
                 productName: name,
                 price: price,
@@ -1312,8 +1499,16 @@
             if (!confirm('この売上記録を削除しますか？')) return;
             state.data.sales = state.data.sales.filter(s => s.id !== id);
             saveData();
-            renderAdminSales();
+            renderApp(); // ホーム画面のサマリーも更新
         };
+
+        function clearAllSales() {
+            if (!confirm('すべての売上データを削除しますか？\n（テストデータの消去などに使用してください）')) return;
+            state.data.sales = [];
+            saveData();
+            renderApp();
+            alert('売上データをすべて削除しました');
+        }
 
         function renderAdminPresets() {
             const list = document.getElementById('edit-preset-list');
@@ -1349,6 +1544,16 @@
 
         function renderMachineSettings() {
             document.getElementById('machine-count').textContent = state.data.machineCount;
+            document.getElementById('one-click-toggle').checked = state.oneClickMode;
+        }
+
+        function renderMachineSettings() {
+            document.getElementById('machine-count').textContent = state.data.machineCount;
+            document.getElementById('one-click-toggle').checked = state.oneClickMode;
+        }
+
+        function renderDataSettings() {
+            // データ系のUI更新があればここ
         }
 
         function addMachine() {

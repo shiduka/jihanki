@@ -1541,7 +1541,7 @@
             if (!silent) console.log('Fetching from cloud...');
             try {
                 state.isSyncing = true;
-                const response = await fetch(state.data.cloudUrl);
+                const response = await fetch(state.data.cloudUrl, { cache: 'no-store' });
                 const cloudData = await response.json();
 
                 // 受信中にもし操作があったら破棄
@@ -1628,10 +1628,16 @@
             }
         }
 
+        function getJSTDateTime() {
+            const now = new Date();
+            const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+            return jstNow.toISOString().replace('T', ' ').replace(/\..+/, '');
+        }
+
         function addSalesRecord(name, price, machineId, id = null) {
             state.data.sales.push({
                 id: id || (Date.now() + Math.random()),
-                date: new Date().toISOString(),
+                date: getJSTDateTime(),
                 productName: name,
                 price: price,
                 machineId: machineId

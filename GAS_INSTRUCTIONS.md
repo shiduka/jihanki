@@ -12,7 +12,7 @@
 
 ```javascript
 /*
- * 自動販売機アプリ用クラウド同期プログラム (GAS) - v2.1 (日付誤認対策版)
+ * 自動販売機アプリ用クラウド同期プログラム (GAS) - v2.2 (書式強制指定版)
  */
 
 function doGet(e) {
@@ -88,7 +88,9 @@ function updateSheetFromObjects(sheet, objects) {
   const headers = Object.keys(objects[0]);
   sheet.appendRow(headers);
   const rows = objects.map(obj => headers.map(h => obj[h]));
-  sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  const range = sheet.getRange(2, 1, rows.length, headers.length);
+  range.setNumberFormat("@"); // 文字列として強制指定
+  range.setValues(rows);
 }
 
 function getMetaValue(sheet, key) {

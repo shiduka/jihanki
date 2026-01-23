@@ -758,7 +758,7 @@ async function fetchFromCloud(silent = false) {
 
     try {
         state.isSyncing = true;
-        const response = await fetch(state.data.cloudUrl);
+        const response = await fetch(state.data.cloudUrl, { cache: 'no-store' });
         const cloudData = await response.json();
 
         // 受信中にもしローカルで操作があったら、そのデータは破棄して中断（ローカル優先）
@@ -853,10 +853,19 @@ function updateLocker(id, Updates) {
     }
 }
 
+// 日本時間 (JST) の日時文字列を取得
+function getJSTDateTime() {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    // スプレッドシート側で文字列として認識させやすくするため、
+    // または日付として誤認された際も秒まで確実に残るようにフォーマット
+    return jstNow.toISOString().replace('T', ' ').replace(/\..+/, '');
+}
+
 function addSalesRecord(name, price, machineId, id = null) {
     state.data.sales.push({
         id: id || (Date.now() + Math.random()),
-        date: new Date().toISOString(),
+        date: getJSTDateTime(), // UTC の toISOString() ではなく日本時間を使用
         productName: name,
         price: price,
         machineId: machineId

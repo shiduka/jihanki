@@ -18,7 +18,8 @@ let state = {
         sales: [],   // { id, date, productName, price, machineId }
         presets: [...DEFAULT_PRESETS],
         machineCount: 2, // 自販機の台数
-        cloudUrl: ''     // GAS WebアプリのURL
+        cloudUrl: '',    // GAS WebアプリのURL
+        autoSync: true   // 自動同期（ポーリング）の有効無効
     },
     // UI状態（保存しない）
     currentMachine: 1,
@@ -50,7 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 定期同期設定 (15秒ごとに短縮して検知精度アップ)
     setInterval(() => {
-        if (state.data.cloudUrl && !state.copyMode) {
+        // モーダルが表示されている（編集中）場合は同期しない
+        const isModalOpen = !document.getElementById('edit-modal').classList.contains('hidden') ||
+            !document.getElementById('buyer-modal').classList.contains('hidden') ||
+            !document.getElementById('admin-modal').classList.contains('hidden');
+
+        if (state.data.cloudUrl && state.data.autoSync && !state.copyMode && !isModalOpen) {
             fetchFromCloud(true); // サイレント更新
         }
     }, 15000);
@@ -64,6 +70,7 @@ function loadData() {
             // データのマージ（新しいフィールドがある場合の対応）
             state.data = { ...state.data, ...parsed };
             // 古いデータ形式からのマイグレーション
+            if (state.data.autoSync === undefined) state.data.autoSync = true;
             if (!state.data.presets) state.data.presets = [...DEFAULT_PRESETS];
             if (!state.data.machineCount) state.data.machineCount = 2;
         } catch (e) {
@@ -353,6 +360,12 @@ function setupEventListeners() {
             }
         };
     }
+
+    // 同期設定
+    document.getElementById('auto-sync-toggle').onchange = (e) => {
+        state.data.autoSync = e.target.checked;
+        saveData();
+    };
 
     // 手動同期
     document.getElementById('manual-sync-btn').onclick = () => {
@@ -996,6 +1009,7 @@ window.removePreset = function (index) {
 function renderMachineSettings() {
     document.getElementById('machine-count').textContent = state.data.machineCount;
     document.getElementById('one-click-toggle').checked = state.oneClickMode;
+    document.getElementById('auto-sync-toggle').checked = state.data.autoSync;
     document.getElementById('cloud-url-input').value = state.data.cloudUrl || '';
 }
 

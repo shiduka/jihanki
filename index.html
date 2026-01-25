@@ -145,6 +145,15 @@
                     <hr>
                     <div class="setting-item">
                         <p>クラウド同期（Googleスプレッドシート）</p>
+                        <div class="cloud-sync-controls" style="margin-bottom: 15px;">
+                            <label class="toggle-container">
+                                <span>自動同期を有効にする</span>
+                                <input type="checkbox" id="auto-sync-toggle">
+                                <span class="checkmark"></span>
+                            </label>
+                            <button id="manual-sync-btn" class="action-btn success"
+                                style="margin-top: 10px; width: 100%;">クラウドから最新データを取得</button>
+                        </div>
                         <div id="cloud-url-display-area" class="cloud-setting">
                             <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURL" readonly>
                             <button id="edit-cloud-url-btn" class="action-btn primary">編集</button>
@@ -153,7 +162,6 @@
                             <input type="text" id="cloud-url-edit-input" placeholder="URLを貼り付け">
                             <button id="save-cloud-url-btn" class="action-btn success">保存</button>
                         </div>
-                        <button id="manual-sync-btn" class="action-btn primary" style="margin-top: 5px;">今すぐ同期</button>
                         <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。手順は「データ」タブの手順書を確認してください。</p>
                     </div>
                     <hr>

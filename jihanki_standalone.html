@@ -90,6 +90,59 @@
             padding-bottom: 12px;
         }
 
+        /* 縦向き固定の警告表示 */
+        #orientation-warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            z-index: 10000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #orientation-warning .icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: rotate-hint 2s infinite;
+        }
+
+        @keyframes rotate-hint {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            50% {
+                transform: rotate(-90deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        #orientation-warning p {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--primary-dark);
+        }
+
+        @media screen and (max-width: 900px) and (orientation: landscape) {
+            #orientation-warning {
+                display: flex;
+            }
+
+            body {
+                overflow: hidden;
+            }
+        }
+
         .app-header h1 {
             margin: 0;
             text-align: center;
@@ -724,6 +777,10 @@
 </head>
 
 <body>
+    <div id="orientation-warning">
+        <div class="icon">📱</div>
+        <p>画面を縦向きにして<br>ご利用ください</p>
+    </div>
     <div id="app">
         <header class="app-header">
             <div id="activity-warning" class="activity-warning hidden">⚠️ 他のユーザーが操作中かもしれません</div>
@@ -963,6 +1020,13 @@
                     fetchFromCloud(true);
                 }
             }, 30000);
+
+            // 画面の向きを縦にロック
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('portrait').catch(err => {
+                    console.log('Orientation lock failed:', err);
+                });
+            }
         });
 
         function loadData() {

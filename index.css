@@ -695,3 +695,58 @@ input:checked+.checkmark::after {
         font-size: 0.85rem;
     }
 }
+
+/* 縦向き警告（JS制御） */
+#orientation-warning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 9999;
+    display: none;
+    /* デフォルト非表示 */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+#orientation-warning.visible {
+    display: flex;
+}
+
+#orientation-warning .icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    animation: rotate-phone 2s infinite;
+}
+
+#orientation-warning p {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--primary-dark);
+}
+
+@keyframes rotate-phone {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(90deg);
+    }
+
+    50% {
+        transform: rotate(90deg);
+    }
+
+    75% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}

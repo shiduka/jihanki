@@ -1116,3 +1116,76 @@ function uploadData() {
     };
     reader.readAsText(file);
 }
+
+// ---------------------------------------------------------
+// 画面の向き制御 (JS実装)
+// ---------------------------------------------------------
+function initOrientationControl() {
+    const warningEl = document.getElementById('orientation-warning');
+    if (!warningEl) return;
+
+    const checkOrientation = () => {
+        // 1. 入力中（キーボード表示中）は警告を出さない
+        const activeTag = document.activeElement ? document.activeElement.tagName : '';
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+            warningEl.classList.remove('visible');
+            document.body.style.overflow = '';
+            return;
+        }
+
+        // 2. 向きの判定
+        let isLandscape = false;
+
+        // Modern API
+        if (screen.orientation && screen.orientation.type) {
+            isLandscape = screen.orientation.type.includes('landscape');
+        }
+        // iOS / Older WebKit
+        else if (typeof window.orientation !== 'undefined') {
+            isLandscape = (Math.abs(window.orientation) === 90);
+        }
+        // Fallback (サイズ比)
+        else {
+            isLandscape = (window.innerWidth > window.innerHeight);
+        }
+
+        // 3. PC（幅広かつ高さもある）の場合は除外したいが、
+        // 今回の要件は「スマホで横にしたら警告」なので、
+        // 画面幅がモバイルサイズ(900px以下)の場合のみ警告を出す
+        if (window.innerWidth > 900) {
+            isLandscape = false;
+        }
+
+        // 4. 表示切り替え
+        if (isLandscape) {
+            warningEl.classList.add('visible');
+            document.body.style.overflow = 'hidden'; // スクロール防止
+        } else {
+            warningEl.classList.remove('visible');
+            document.body.style.overflow = '';
+        }
+    };
+
+    // イベントリスナー登録
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    // 入力フォーカスの変化でも再チェック（キーボード開閉直後の誤判定防止）
+    document.addEventListener('focusin', () => {
+        // フォーカス時は即座に警告を消す
+        warningEl.classList.remove('visible');
+        document.body.style.overflow = '';
+    });
+
+    document.addEventListener('focusout', () => {
+        // フォーカスが外れたら少し待ってからチェック（キーボードが閉じる時間を考慮）
+        setTimeout(checkOrientation, 300);
+    });
+
+    // 初期チェック
+    checkOrientation();
+}
+
+// 起動時に設定
+document.addEventListener('DOMContentLoaded', initOrientationControl);
+

@@ -75,13 +75,16 @@
                 <span class="close-modal">&times;</span>
                 <h2>商品登録</h2>
                 <div class="preset-area">
-                    <p>商品名を選択:</p>
+                    <p>商品名を選択（複数可）:</p>
                     <div id="preset-buttons" class="preset-grid">
                         <!-- プリセットボタンはJSで生成 -->
                     </div>
-                    <div class="custom-input-area">
-                        <input type="text" id="custom-product-name" placeholder="直接入力も可能">
+                    <p style="margin-top: 12px;">または直接入力:</p>
+                    <div id="product-inputs-container">
+                        <!-- 入力行はJSで動的生成 -->
                     </div>
+                    <button type="button" id="add-product-btn" class="add-product-btn"
+                        onclick="addProductInputRow('')">＋ 商品を追加</button>
                 </div>
                 <div class="price-setting-area">
                     <p>価格設定:</p>
@@ -89,6 +92,13 @@
                         <!-- 価格ボタンはJSで生成 -->
                     </div>
                     <p class="selected-price">選択中: <span id="setting-price">¥100</span></p>
+                </div>
+                <div class="bonus-area">
+                    <label class="toggle-container">
+                        <span>🎁 おまけを入れる</span>
+                        <input type="checkbox" id="bonus-toggle">
+                        <span class="checkmark"></span>
+                    </label>
                 </div>
                 <div class="seller-actions">
                     <button id="register-btn" class="action-btn success">登録して施錠</button>
@@ -179,12 +189,22 @@
                 </div>
 
                 <div id="tab-presets" class="tab-content">
+                    <h3>商品名プリセット</h3>
                     <div id="edit-preset-list" class="preset-list">
                         <!-- 編集用プリセットリスト -->
                     </div>
                     <div class="add-preset-form">
                         <input type="text" id="new-preset-name" placeholder="新しい野菜名">
                         <button id="add-preset-btn" class="action-btn">追加</button>
+                    </div>
+                    <hr>
+                    <h3>金額プリセット</h3>
+                    <div id="edit-price-preset-list" class="preset-list">
+                        <!-- 金額プリセットリスト -->
+                    </div>
+                    <div class="add-preset-form">
+                        <input type="number" id="new-price-preset" placeholder="新しい金額（例: 250）" min="1">
+                        <button id="add-price-preset-btn" class="action-btn">追加</button>
                     </div>
                 </div>
 

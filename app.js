@@ -8,15 +8,16 @@ const STORAGE_KEY = 'vending_machine_data';
 const DEFAULT_PRESETS = ['大玉トマト', '中玉トマト', 'ミニトマト', 'レタス', 'いちご', 'キュウリ'];
 const TOTAL_ROWS = 6;
 const TOTAL_COLS = 3;
-const PRICE_OPTIONS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+const DEFAULT_PRICE_PRESETS = [100, 150, 200, 300, 400, 500];
 
 // 状態管理
 let state = {
     // データ（保存対象）
     data: {
-        lockers: [], // { id, machineId, row, col, isLocked, productName, price, insertedAmount }
+        lockers: [], // { id, machineId, row, col, isLocked, productName, price, insertedAmount, hasBonus }
         sales: [],   // { id, date, productName, price, machineId }
         presets: [...DEFAULT_PRESETS],
+        pricePresets: [...DEFAULT_PRICE_PRESETS], // 金額プリセット
         machineCount: 2, // 自販機の台数
         cloudUrl: '',    // GAS WebアプリのURL
         autoSync: true   // 自動同期（ポーリング）の有効無効
@@ -73,6 +74,8 @@ function loadData() {
             if (state.data.autoSync === undefined) state.data.autoSync = true;
             if (!state.data.presets) state.data.presets = [...DEFAULT_PRESETS];
             if (!state.data.machineCount) state.data.machineCount = 2;
+            // 金額プリセットのマイグレーション
+            if (!state.data.pricePresets) state.data.pricePresets = [...DEFAULT_PRICE_PRESETS];
         } catch (e) {
             console.error('データ読み込みエラー', e);
         }
@@ -149,6 +152,7 @@ function renderApp() {
     renderCopyModeIndicator();
     renderAdminSales();
     renderAdminPresets();
+    renderAdminPricePresets();
     renderMachineSettings();
     renderDataSettings();
 }
@@ -200,10 +204,27 @@ function renderLockers() {
         contentDiv.style.width = '100%';
 
         if (locker.isLocked) {
+            // 複数商品対応: 改行区切りで商品名を分割
+            const products = locker.productName.split('\n').filter(p => p.trim());
+            const productCount = products.length;
+            // 品数に応じてフォントサイズを変更
+            let fontSizeClass = '';
+            if (productCount >= 3) fontSizeClass = ' locker-product-sm';
+            else if (productCount >= 2) fontSizeClass = ' locker-product-md';
+
+            const productHtml = products.map(p => escapeHtml(p)).join('<br>');
             contentDiv.innerHTML = `
-                <div class="locker-product">${escapeHtml(locker.productName)}</div>
+                <div class="locker-product${fontSizeClass}">${productHtml}</div>
                 <div class="locker-price">¥${locker.price}</div>
             `;
+
+            // おまけバッジ
+            if (locker.hasBonus) {
+                const bonusBadge = document.createElement('span');
+                bonusBadge.className = 'bonus-badge';
+                bonusBadge.textContent = '🎁';
+                el.appendChild(bonusBadge);
+            }
         } else {
             contentDiv.innerHTML = `<span class="locker-status">空き</span>`;
         }
@@ -313,6 +334,9 @@ function setupEventListeners() {
 
     // プリセット追加
     document.getElementById('add-preset-btn').onclick = addPreset;
+    // 金額プリセット追加
+    const addPricePresetBtn = document.getElementById('add-price-preset-btn');
+    if (addPricePresetBtn) addPricePresetBtn.onclick = addPricePreset;
 
     // 自販機追加・削除
     document.getElementById('add-machine-btn').onclick = addMachine;
@@ -424,38 +448,90 @@ function handleLockerClick(locker) {
 // -- 販売者ロジック --
 
 function openSellerModal(locker) {
-    const productNameInput = document.getElementById('custom-product-name');
     const adminPurchaseBtn = document.getElementById('admin-purchase-btn');
     const clearBtn = document.getElementById('clear-locker-btn');
     const registerBtn = document.getElementById('register-btn');
     const copyBtn = document.getElementById('copy-product-btn');
+    const bonusToggle = document.getElementById('bonus-toggle');
 
-    // プリセットボタン生成
+    // プリセットボタン生成（複数選択対応）
+    state.selectedPresets = [];
     renderPresetButtons();
     // 価格ボタン生成
     renderPriceButtons();
 
+    // 複数入力欄を初期化
+    const inputContainer = document.getElementById('product-inputs-container');
+    inputContainer.innerHTML = '';
+
     if (locker.isLocked) {
         // 既に入ってる場合の編集・取り下げモード
-        productNameInput.value = locker.productName;
+        const products = locker.productName.split('\n').filter(p => p.trim());
+        products.forEach(p => addProductInputRow(p));
+        if (products.length === 0) addProductInputRow('');
         state.tempPrice = locker.price;
         adminPurchaseBtn.classList.remove('hidden');
         clearBtn.classList.remove('hidden');
-        copyBtn.classList.remove('hidden'); // コピーボタン表示
+        copyBtn.classList.remove('hidden');
         registerBtn.textContent = "更新";
+        // おまけトグル
+        if (bonusToggle) bonusToggle.checked = locker.hasBonus || false;
     } else {
         // 新規登録
-        productNameInput.value = '';
-        state.tempPrice = 100;
+        addProductInputRow('');
+        state.tempPrice = state.data.pricePresets[0] || 100;
         adminPurchaseBtn.classList.add('hidden');
         clearBtn.classList.add('hidden');
-        copyBtn.classList.add('hidden'); // コピーボタン非表示
+        copyBtn.classList.add('hidden');
         registerBtn.textContent = "登録して施錠";
+        if (bonusToggle) bonusToggle.checked = false;
     }
 
+    updateAddProductBtnVisibility();
     updatePriceDisplay();
     updatePriceButtonSelection();
     openModal('seller-modal');
+}
+
+// 商品入力行を追加
+function addProductInputRow(value) {
+    const container = document.getElementById('product-inputs-container');
+    const currentRows = container.querySelectorAll('.product-input-row');
+    if (currentRows.length >= 3) return; // 最大3行
+
+    const row = document.createElement('div');
+    row.className = 'product-input-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'product-name-input';
+    input.placeholder = '商品名を入力';
+    input.value = value || '';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'remove-input-btn';
+    removeBtn.textContent = '✕';
+    removeBtn.onclick = () => {
+        // 最低1行は残す
+        const rows = container.querySelectorAll('.product-input-row');
+        if (rows.length > 1) {
+            row.remove();
+            updateAddProductBtnVisibility();
+        }
+    };
+
+    row.append(input, removeBtn);
+    container.appendChild(row);
+    updateAddProductBtnVisibility();
+}
+
+function updateAddProductBtnVisibility() {
+    const container = document.getElementById('product-inputs-container');
+    const addBtn = document.getElementById('add-product-btn');
+    if (!addBtn || !container) return;
+    const currentRows = container.querySelectorAll('.product-input-row');
+    addBtn.style.display = currentRows.length >= 3 ? 'none' : '';
 }
 
 // -- コピー機能 --
@@ -479,7 +555,8 @@ function startCopyMode() {
     state.copyMode = true;
     state.copyProduct = {
         productName: locker.productName,
-        price: locker.price
+        price: locker.price,
+        hasBonus: locker.hasBonus || false
     };
 
     closeModal();
@@ -499,6 +576,7 @@ function pasteProduct(locker) {
         isLocked: true,
         productName: state.copyProduct.productName,
         price: state.copyProduct.price,
+        hasBonus: state.copyProduct.hasBonus,
         insertedAmount: 0
     });
 
@@ -510,15 +588,32 @@ function pasteProduct(locker) {
 function renderPresetButtons() {
     const container = document.getElementById('preset-buttons');
     container.innerHTML = '';
+    if (!state.selectedPresets) state.selectedPresets = [];
+
     state.data.presets.forEach(p => {
         const btn = document.createElement('button');
         btn.textContent = p;
         btn.className = 'preset-btn';
+        if (state.selectedPresets.includes(p)) btn.classList.add('selected');
+
         btn.onclick = () => {
-            document.getElementById('custom-product-name').value = p;
-            // 視覚的な選択状態
-            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
+            const idx = state.selectedPresets.indexOf(p);
+            if (idx >= 0) {
+                // 選択解除
+                state.selectedPresets.splice(idx, 1);
+                btn.classList.remove('selected');
+            } else {
+                // 入力欄の合計と合わせて3つ以内かチェック
+                const inputContainer = document.getElementById('product-inputs-container');
+                const inputCount = inputContainer ? inputContainer.querySelectorAll('.product-input-row').length : 0;
+                const filledInputs = inputContainer ? [...inputContainer.querySelectorAll('.product-name-input')].filter(i => i.value.trim()).length : 0;
+                if (state.selectedPresets.length + filledInputs >= 3) {
+                    alert('商品は最大3つまでです');
+                    return;
+                }
+                state.selectedPresets.push(p);
+                btn.classList.add('selected');
+            }
         };
         container.appendChild(btn);
     });
@@ -527,7 +622,8 @@ function renderPresetButtons() {
 function renderPriceButtons() {
     const container = document.getElementById('price-buttons');
     container.innerHTML = '';
-    PRICE_OPTIONS.forEach(price => {
+    const priceOptions = state.data.pricePresets || DEFAULT_PRICE_PRESETS;
+    priceOptions.forEach(price => {
         const btn = document.createElement('button');
         btn.textContent = `¥${price}`;
         btn.className = 'price-btn';
@@ -552,9 +648,22 @@ function updatePriceDisplay() {
 }
 
 function registerProduct() {
-    const name = document.getElementById('custom-product-name').value;
-    if (!name) {
-        alert('商品名を入力してください');
+    // 入力欄の商品名を収集
+    const inputContainer = document.getElementById('product-inputs-container');
+    const inputNames = inputContainer
+        ? [...inputContainer.querySelectorAll('.product-name-input')].map(i => i.value.trim()).filter(v => v)
+        : [];
+    // プリセット選択の商品名を収集
+    const presetNames = state.selectedPresets ? [...state.selectedPresets] : [];
+    // 結合（プリセット優先、その後入力欄）
+    const allNames = [...presetNames, ...inputNames];
+
+    if (allNames.length === 0) {
+        alert('商品名を入力またはプリセットを選択してください');
+        return;
+    }
+    if (allNames.length > 3) {
+        alert('商品は最大3つまでです');
         return;
     }
     if (state.tempPrice <= 0) {
@@ -562,10 +671,16 @@ function registerProduct() {
         return;
     }
 
+    // 改行区切りで結合
+    const combinedName = allNames.join('\n');
+    const bonusToggle = document.getElementById('bonus-toggle');
+    const hasBonus = bonusToggle ? bonusToggle.checked : false;
+
     updateLocker(state.selectedLockerId, {
         isLocked: true,
-        productName: name,
+        productName: combinedName,
         price: state.tempPrice,
+        hasBonus: hasBonus,
         insertedAmount: 0
     });
 
@@ -1004,6 +1119,49 @@ window.removePreset = function (index) {
     state.data.presets.splice(index, 1);
     saveData();
     renderAdminPresets();
+};
+
+// -- 金額プリセット管理 --
+function renderAdminPricePresets() {
+    const list = document.getElementById('edit-price-preset-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const presets = state.data.pricePresets || DEFAULT_PRICE_PRESETS;
+    presets.forEach((p, index) => {
+        const div = document.createElement('div');
+        div.className = 'preset-list-item';
+        div.innerHTML = `
+            <span>¥${p}</span>
+            <button class="remove-preset-btn" onclick="removePricePreset(${index})">&times;</button>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function addPricePreset() {
+    const input = document.getElementById('new-price-preset');
+    const val = parseInt(input.value.trim());
+    if (val && val > 0) {
+        if (!state.data.pricePresets) state.data.pricePresets = [...DEFAULT_PRICE_PRESETS];
+        if (state.data.pricePresets.includes(val)) {
+            alert('この金額は既に登録されています');
+            return;
+        }
+        state.data.pricePresets.push(val);
+        state.data.pricePresets.sort((a, b) => a - b); // 昇順ソート
+        input.value = '';
+        saveData();
+        renderAdminPricePresets();
+    }
+}
+
+window.removePricePreset = function (index) {
+    if (!confirm('削除しますか？')) return;
+    if (!state.data.pricePresets) state.data.pricePresets = [...DEFAULT_PRICE_PRESETS];
+    state.data.pricePresets.splice(index, 1);
+    saveData();
+    renderAdminPricePresets();
 };
 
 function renderMachineSettings() {

@@ -706,7 +706,7 @@ function processAdminPurchase() {
     const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
     if (!locker) return;
 
-    addSalesRecord(locker.productName, locker.price, locker.machineId, null, null, null, locker.hasBonus || false);
+    addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum, locker.hasBonus || false);
 
     // ロッカーを空にする
     updateLocker(state.selectedLockerId, {

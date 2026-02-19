@@ -170,8 +170,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
-    /* 金額を下寄せ */
+    justify-content: center;
     cursor: pointer;
     padding: 5px 5px 8px;
     transition: transform 0.1s;
@@ -198,6 +197,17 @@ body {
     font-weight: bold;
     color: #666;
     /* 少し濃く */
+}
+
+.locker-content {
+    text-align: center;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
 }
 
 .locker-product {
@@ -406,11 +416,11 @@ h2 {
 
 /* 複数商品フォントサイズ */
 .locker-product-md {
-    font-size: 0.85rem !important;
+    font-size: 0.95rem !important;
 }
 
 .locker-product-sm {
-    font-size: 0.75rem !important;
+    font-size: 0.85rem !important;
 }
 
 /* おまけバッジ */

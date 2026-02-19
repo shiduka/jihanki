@@ -200,8 +200,7 @@ function renderLockers() {
         idSpan.textContent = locker.coordNum;
 
         const contentDiv = document.createElement('div');
-        contentDiv.style.textAlign = 'center';
-        contentDiv.style.width = '100%';
+        contentDiv.className = 'locker-content';
 
         if (locker.isLocked) {
             // 複数商品対応: 改行区切りで商品名を分割

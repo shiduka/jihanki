@@ -706,7 +706,7 @@ function processAdminPurchase() {
     const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
     if (!locker) return;
 
-    addSalesRecord(locker.productName, locker.price, locker.machineId);
+    addSalesRecord(locker.productName, locker.price, locker.machineId, null, null, null, locker.hasBonus || false);
 
     // ロッカーを空にする
     updateLocker(state.selectedLockerId, {
@@ -739,7 +739,7 @@ function processBulkPurchase() {
 
     // 各商品を売上に計上
     machineLockers.forEach(locker => {
-        addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum);
+        addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum, locker.hasBonus || false);
         updateLocker(locker.id, {
             isLocked: false,
             productName: '',
@@ -784,7 +784,7 @@ function processPurchase() {
     const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
     if (!locker) return;
 
-    addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum);
+    addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum, locker.hasBonus || false);
 
     // ロッカーを空にする
     updateLocker(state.selectedLockerId, {
@@ -804,7 +804,7 @@ function processPurchase() {
 
 function processQuickPurchase(locker) {
     const saleId = Date.now() + Math.random();
-    addSalesRecord(locker.productName, locker.price, locker.machineId, saleId, locker.machineNum, locker.coordNum);
+    addSalesRecord(locker.productName, locker.price, locker.machineId, saleId, locker.machineNum, locker.coordNum, locker.hasBonus || false);
 
     // ロッカーを空にする
     updateLocker(locker.id, {
@@ -989,7 +989,7 @@ function getJSTDateTime() {
     return jstNow.toISOString().replace('T', ' ').replace(/\..+/, '');
 }
 
-function addSalesRecord(name, price, machineId, id = null, machineNum = null, coordNum = null) {
+function addSalesRecord(name, price, machineId, id = null, machineNum = null, coordNum = null, hasBonus = false) {
     state.data.sales.push({
         id: id || (Date.now() + Math.random()),
         date: getJSTDateTime(),
@@ -997,7 +997,8 @@ function addSalesRecord(name, price, machineId, id = null, machineNum = null, co
         price: price,
         machineId: machineId,
         machineNum: machineNum,
-        coordNum: coordNum
+        coordNum: coordNum,
+        hasBonus: hasBonus
     });
 }
 
@@ -1058,9 +1059,10 @@ function renderAdminSales() {
         const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 
         const locInfo = sale.coordNum ? `<small style="color:#888">[自販機${sale.machineNum || sale.machineId} ${sale.coordNum}]</small>` : '';
+        const bonusIcon = sale.hasBonus ? '🎁 ' : '';
         tr.innerHTML = `
             <td>${dateStr}</td>
-            <td>${escapeHtml(sale.productName)} ${locInfo}</td>
+            <td>${bonusIcon}${escapeHtml(sale.productName)} ${locInfo}</td>
             <td>¥${sale.price}</td>
             <td><button class="delete-record-btn" onclick="deleteSale(${sale.id})">削除</button></td>
         `;

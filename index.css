@@ -89,13 +89,25 @@ body {
 
 .mode-btn.active,
 .machine-tab.active {
-    background: white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    color: var(--primary-color);
 }
 
+/* 購入者タブ: 緑系 */
+.mode-btn.active#mode-buyer {
+    background: #E8F5E9;
+    color: var(--primary-dark);
+}
+
+/* 販売者タブ: ピンク系 */
 .mode-btn.active#mode-seller {
+    background: #FCE4EC;
     color: #E91E63;
+}
+
+/* 自販機タブ: アクティブ時は緑系 */
+.machine-tab.active {
+    background: #C8E6C9;
+    color: var(--primary-dark);
 }
 
 .icon-btn {
@@ -178,6 +190,38 @@ body {
     position: relative;
     min-height: 90px;
 }
+
+/* 金額別ロッカー色分け */
+.locker.locked.price-tier-1 {
+    background: #E8F5E9;
+    border-color: #81C784;
+}
+
+/* ~¥100 緑 */
+.locker.locked.price-tier-2 {
+    background: #E3F2FD;
+    border-color: #64B5F6;
+}
+
+/* ~¥200 青 */
+.locker.locked.price-tier-3 {
+    background: #FFF8E1;
+    border-color: #FFD54F;
+}
+
+/* ~¥300 黄 */
+.locker.locked.price-tier-4 {
+    background: #FFF3E0;
+    border-color: #FFB74D;
+}
+
+/* ~¥400 オレンジ */
+.locker.locked.price-tier-5 {
+    background: #FCE4EC;
+    border-color: #F06292;
+}
+
+/* ¥500~ ピンク */
 
 .locker:active {
     transform: scale(0.95);

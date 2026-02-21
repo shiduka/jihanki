@@ -211,6 +211,10 @@ function renderLockers() {
             if (productCount >= 3) fontSizeClass = ' locker-product-sm';
             else if (productCount >= 2) fontSizeClass = ' locker-product-md';
 
+            // 金額別色分け
+            const priceColorClass = getPriceColorClass(locker.price);
+            if (priceColorClass) el.classList.add(priceColorClass);
+
             const productHtml = products.map(p => escapeHtml(p)).join('<br>');
             contentDiv.innerHTML = `
                 <div class="locker-product${fontSizeClass}">${productHtml}</div>
@@ -236,17 +240,28 @@ function renderLockers() {
 function renderBulkPurchaseArea() {
     const area = document.getElementById('bulk-purchase-area');
     const btn = document.getElementById('bulk-purchase-btn');
-    if (state.mode === 'seller') {
-        const hasProducts = state.data.lockers.some(l => l.machineId === state.currentMachine && l.isLocked);
+    const clearAllArea = document.getElementById('bulk-clear-area');
+    const hasProducts = state.data.lockers.some(l => l.machineId === state.currentMachine && l.isLocked);
+
+    if (state.mode === 'buyer') {
+        // 購入者モードで一括購入を表示
         if (hasProducts) {
             area.classList.remove('hidden');
-            // コピーモード中は無効化
-            btn.disabled = state.copyMode;
+            btn.disabled = false;
         } else {
             area.classList.add('hidden');
         }
     } else {
         area.classList.add('hidden');
+    }
+
+    // 販売者モードで一括削除を表示
+    if (clearAllArea) {
+        if (state.mode === 'seller' && hasProducts) {
+            clearAllArea.classList.remove('hidden');
+        } else {
+            clearAllArea.classList.add('hidden');
+        }
     }
 }
 
@@ -319,6 +334,9 @@ function setupEventListeners() {
 
     // --- 一括購入 ---
     document.getElementById('bulk-purchase-btn').onclick = processBulkPurchase;
+    // --- 一括削除（売上なし） ---
+    const bulkClearBtn = document.getElementById('bulk-clear-btn');
+    if (bulkClearBtn) bulkClearBtn.onclick = processBulkClear;
 
     // --- 管理モーダル ---
     const tabs = document.querySelectorAll('.tab-btn');
@@ -695,6 +713,7 @@ function clearLocker() {
         isLocked: false,
         productName: '',
         price: 0,
+        hasBonus: false,
         insertedAmount: 0
     });
     saveData();
@@ -972,6 +991,43 @@ function saveDataLocally() {
 
 
 // -- 共通・ヘルパー --
+
+// 金額に応じたCSSクラスを返す
+function getPriceColorClass(price) {
+    if (price <= 100) return 'price-tier-1';
+    if (price <= 200) return 'price-tier-2';
+    if (price <= 300) return 'price-tier-3';
+    if (price <= 400) return 'price-tier-4';
+    return 'price-tier-5';
+}
+
+// 一括削除（売上なし）
+function processBulkClear() {
+    const machineLockers = state.data.lockers.filter(l => l.machineId === state.currentMachine && l.isLocked);
+
+    if (machineLockers.length === 0) {
+        alert('この自販機には商品がありません');
+        return;
+    }
+
+    const productCount = machineLockers.length;
+    if (!confirm(`自販機${state.currentMachine}の商品を一括削除しますか？\n\n商品数: ${productCount}個\n\n※売上には計上されません。すべてのロッカーが空になります。`)) {
+        return;
+    }
+
+    machineLockers.forEach(locker => {
+        updateLocker(locker.id, {
+            isLocked: false,
+            productName: '',
+            price: 0,
+            hasBonus: false,
+            insertedAmount: 0
+        });
+    });
+
+    saveData();
+    renderApp();
+}
 
 function updateLocker(id, Updates) {
     const idx = state.data.lockers.findIndex(l => l.id === id);

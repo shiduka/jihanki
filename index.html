@@ -42,9 +42,13 @@
                     <span id="today-sales" class="sales-amount">¥0</span>
                 </div>
             </div>
-            <!-- 一括購入ボタン（販売者モード時のみ表示） -->
+            <!-- 一括購入ボタン（購入者モード時のみ表示） -->
             <div id="bulk-purchase-area" class="bulk-purchase-area hidden">
                 <button id="bulk-purchase-btn" class="action-btn warning">この自販機の商品を一括購入</button>
+            </div>
+            <!-- 一括削除ボタン（販売者モード時のみ表示） -->
+            <div id="bulk-clear-area" class="bulk-purchase-area hidden">
+                <button id="bulk-clear-btn" class="action-btn danger">この自販機の商品を一括削除（売上なし）</button>
             </div>
             <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
                 <span>📋 コピー中: <strong id="copy-product-info"></strong></span>

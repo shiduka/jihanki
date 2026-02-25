@@ -20,7 +20,8 @@ let state = {
         pricePresets: [...DEFAULT_PRICE_PRESETS], // 金額プリセット
         machineCount: 2, // 自販機の台数
         cloudUrl: '',    // GAS WebアプリのURL
-        autoSync: true   // 自動同期（ポーリング）の有効無効
+        autoSync: true,   // 自動同期（ポーリング）の有効無効
+        oneClickMode: false // ワンクリック購入
     },
     // UI状態（保存しない）
     currentMachine: 1,
@@ -31,8 +32,6 @@ let state = {
     // コピーモード
     copyMode: false,
     copyProduct: null, // { productName, price }
-    // ワンクリック購入
-    oneClickMode: false,
     lastPurchase: null, // { lockerId, saleId } - Undo用
     isSyncing: false,       // 送信中フラグ
     lastLocalEditTime: 0    // 最終操作時刻
@@ -76,6 +75,8 @@ function loadData() {
             if (!state.data.machineCount) state.data.machineCount = 2;
             // 金額プリセットのマイグレーション
             if (!state.data.pricePresets) state.data.pricePresets = [...DEFAULT_PRICE_PRESETS];
+            // ワンクリック購入のマイグレーション
+            if (state.data.oneClickMode === undefined) state.data.oneClickMode = false;
         } catch (e) {
             console.error('データ読み込みエラー', e);
         }
@@ -221,8 +222,8 @@ function renderLockers() {
                 <div class="locker-price">¥${locker.price}</div>
             `;
 
-            // おまけバッジ
-            if (locker.hasBonus) {
+            // おまけバッジ (true または 文字列 "true" の場合のみ表示)
+            if (locker.hasBonus === true || locker.hasBonus === 'true') {
                 const bonusBadge = document.createElement('span');
                 bonusBadge.className = 'bonus-badge';
                 bonusBadge.textContent = '🎁';
@@ -369,7 +370,7 @@ function setupEventListeners() {
 
     // ワンクリック購入切り替え
     document.getElementById('one-click-toggle').onchange = (e) => {
-        state.oneClickMode = e.target.checked;
+        state.data.oneClickMode = e.target.checked;
         saveData();
     };
 
@@ -453,7 +454,7 @@ function handleLockerClick(locker) {
         openSellerModal(locker);
     } else {
         if (locker.isLocked) {
-            if (state.oneClickMode) {
+            if (state.data.oneClickMode) {
                 processQuickPurchase(locker);
             } else {
                 openBuyerModal(locker);
@@ -923,7 +924,7 @@ async function fetchFromCloud(silent = false) {
 
             // 設定の同期
             if (cloudData.oneClickMode !== undefined) {
-                state.oneClickMode = (cloudData.oneClickMode === true || cloudData.oneClickMode === "true");
+                state.data.oneClickMode = (cloudData.oneClickMode === true || cloudData.oneClickMode === "true");
             }
 
             // ローカルデータをクラウドのもので更新（日付化対策 & ソート強制）
@@ -965,7 +966,7 @@ async function pushToCloud() {
         sales: state.data.sales,
         presets: state.data.presets,
         machineCount: state.data.machineCount,
-        oneClickMode: state.oneClickMode
+        oneClickMode: state.data.oneClickMode
     };
 
     try {
@@ -1223,7 +1224,7 @@ window.removePricePreset = function (index) {
 
 function renderMachineSettings() {
     document.getElementById('machine-count').textContent = state.data.machineCount;
-    document.getElementById('one-click-toggle').checked = state.oneClickMode;
+    document.getElementById('one-click-toggle').checked = state.data.oneClickMode;
     document.getElementById('auto-sync-toggle').checked = state.data.autoSync;
     document.getElementById('cloud-url-input').value = state.data.cloudUrl || '';
 }

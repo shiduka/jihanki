@@ -454,11 +454,8 @@ function handleLockerClick(locker) {
         openSellerModal(locker);
     } else {
         if (locker.isLocked) {
-            if (state.data.oneClickMode) {
-                processQuickPurchase(locker);
-            } else {
-                openBuyerModal(locker);
-            }
+            // 購入者モード: 即購入
+            processQuickPurchase(locker);
         }
     }
 }

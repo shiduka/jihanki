@@ -286,9 +286,9 @@ function renderSalesSummary() {
             const saleDateOnly = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate());
 
             if (saleDateOnly.getTime() === today.getTime()) {
-                todayTotal += sale.price;
+                todayTotal += Number(sale.price) || 0;
             } else if (saleDateOnly.getTime() === yesterday.getTime()) {
-                yesterdayTotal += sale.price;
+                yesterdayTotal += Number(sale.price) || 0;
             }
         });
 
@@ -469,38 +469,58 @@ function openSellerModal(locker) {
     const copyBtn = document.getElementById('copy-product-btn');
     const bonusToggle = document.getElementById('bonus-toggle');
 
-    // プリセットボタン生成（複数選択対応）
-    state.selectedPresets = [];
-    renderPresetButtons();
-    // 価格ボタン生成
-    renderPriceButtons();
-
     // 複数入力欄を初期化
     const inputContainer = document.getElementById('product-inputs-container');
     inputContainer.innerHTML = '';
 
+    state.selectedPresets = [];
+    state.tempPrice = state.data.pricePresets[0] || 100;
+    let defaultBonus = false;
+    let inputRowsAdded = 0;
+
     if (locker.isLocked) {
         // 既に入ってる場合の編集・取り下げモード
         const products = locker.productName.split('\n').filter(p => p.trim());
-        products.forEach(p => addProductInputRow(p));
-        if (products.length === 0) addProductInputRow('');
+        products.forEach(p => {
+             addProductInputRow(p);
+             inputRowsAdded++;
+        });
+        if (inputRowsAdded === 0) addProductInputRow('');
         state.tempPrice = locker.price;
         adminPurchaseBtn.classList.remove('hidden');
         clearBtn.classList.remove('hidden');
         copyBtn.classList.remove('hidden');
         registerBtn.textContent = "更新";
-        // おまけトグル
         if (bonusToggle) bonusToggle.checked = locker.hasBonus || false;
     } else {
         // 新規登録
-        addProductInputRow('');
-        state.tempPrice = state.data.pricePresets[0] || 100;
+        if (state.data.lastRegistered) {
+             const names = state.data.lastRegistered.names || [];
+             names.forEach(n => {
+                 if (state.data.presets.includes(n)) {
+                     state.selectedPresets.push(n);
+                 } else {
+                     addProductInputRow(n);
+                     inputRowsAdded++;
+                 }
+             });
+             state.tempPrice = state.data.lastRegistered.price || state.data.pricePresets[0] || 100;
+             defaultBonus = state.data.lastRegistered.hasBonus || false;
+        }
+
+        if (inputRowsAdded === 0) addProductInputRow('');
+
         adminPurchaseBtn.classList.add('hidden');
         clearBtn.classList.add('hidden');
         copyBtn.classList.add('hidden');
         registerBtn.textContent = "登録して施錠";
-        if (bonusToggle) bonusToggle.checked = false;
+        if (bonusToggle) bonusToggle.checked = defaultBonus;
     }
+
+    // プリセットボタン生成（複数選択対応）
+    renderPresetButtons();
+    // 価格ボタン生成
+    renderPriceButtons();
 
     updateAddProductBtnVisibility();
     updatePriceDisplay();
@@ -690,6 +710,13 @@ function registerProduct() {
     const combinedName = allNames.join('\n');
     const bonusToggle = document.getElementById('bonus-toggle');
     const hasBonus = bonusToggle ? bonusToggle.checked : false;
+
+    // ----- 新規追加：次回の入力補完のために情報を記憶 -----
+    state.data.lastRegistered = {
+        names: allNames,
+        price: state.tempPrice,
+        hasBonus: hasBonus
+    };
 
     updateLocker(state.selectedLockerId, {
         isLocked: true,

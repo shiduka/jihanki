@@ -37,7 +37,8 @@ let state = {
     lastPurchase: null,
     isSyncing: false,
     lastLocalEditTime: 0,
-    isDirty: false // クラウドへの送信待ちフラグ
+    isDirty: false, // クラウドへの送信待ちフラグ
+    adminTargetMonth: '' // 管理画面で表示する月(YYYY-MM)
 };
 
 // グラフインスタンス保持用
@@ -155,9 +156,11 @@ function renderApp() {
 
     const vendingView = document.getElementById('vending-view');
     const adminView = document.getElementById('admin-view');
+    const machineSwitch = document.getElementById('machine-switch');
 
     if (state.mode === 'admin') {
         vendingView.classList.add('hidden');
+        machineSwitch.classList.add('hidden');
         adminView.classList.remove('hidden');
         renderAdminSales();
         renderAdminPresets();
@@ -167,6 +170,7 @@ function renderApp() {
         renderAnalytics();
     } else {
         vendingView.classList.remove('hidden');
+        machineSwitch.classList.remove('hidden');
         adminView.classList.add('hidden');
         renderLockers();
         renderBulkPurchaseArea();
@@ -377,7 +381,20 @@ function setupEventListeners() {
     document.getElementById('upload-data-btn').onclick = () => document.getElementById('upload-data-input').click();
     document.getElementById('upload-data-input').onchange = uploadData;
 
-    document.getElementById('sales-period').onchange = renderAdminSales;
+    // 月選択ピッカーの初期化とイベント
+    const monthPicker = document.getElementById('admin-month-picker');
+    if (monthPicker) {
+        if (!state.adminTargetMonth) {
+            const now = new Date();
+            state.adminTargetMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+        monthPicker.value = state.adminTargetMonth;
+        monthPicker.onchange = (e) => {
+            state.adminTargetMonth = e.target.value;
+            renderAdminSales();
+            renderAnalytics();
+        };
+    }
 
     document.getElementById('one-click-toggle').onchange = (e) => {
         state.data.oneClickMode = e.target.checked;
@@ -1023,21 +1040,15 @@ function escapeHtml(str) {
 function renderAdminSales() {
     const tbody = document.getElementById('sales-table-body');
     const totalEl = document.getElementById('total-sales');
-    const period = document.getElementById('sales-period').value;
 
     tbody.innerHTML = '';
     let filtered = [...state.data.sales];
-    const now = new Date();
 
-    if (period === 'monthly') {
+    if (state.adminTargetMonth) {
+        const [targetYear, targetMonth] = state.adminTargetMonth.split('-').map(Number);
         filtered = filtered.filter(s => {
             const d = new Date(s.date);
-            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        });
-    } else {
-        filtered = filtered.filter(s => {
-            const d = new Date(s.date);
-            return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            return d.getFullYear() === targetYear && d.getMonth() === (targetMonth - 1);
         });
     }
 
@@ -1264,16 +1275,18 @@ function uploadData() {
 function renderAnalytics() {
     if (typeof Chart === 'undefined') return;
 
-    const now = new Date();
-    // 今月の売上に絞る
-    const currentMonthSales = state.data.sales.filter(s => {
-        const d = new Date(s.date);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
+    let targetSales = [...state.data.sales];
+    if (state.adminTargetMonth) {
+        const [targetYear, targetMonth] = state.adminTargetMonth.split('-').map(Number);
+        targetSales = targetSales.filter(s => {
+            const d = new Date(s.date);
+            return d.getFullYear() === targetYear && d.getMonth() === (targetMonth - 1);
+        });
+    }
 
     // --- 商品別集計 ---
     const productCounts = {};
-    currentMonthSales.forEach(s => {
+    targetSales.forEach(s => {
         const names = s.productName.split('\n').map(n=>n.trim()).filter(n=>n);
         names.forEach(n => {
             productCounts[n] = (productCounts[n] || 0) + 1;
@@ -1307,7 +1320,7 @@ function renderAnalytics() {
 
     // --- 時間帯別集計 ---
     const timeCounts = new Array(24).fill(0);
-    currentMonthSales.forEach(s => {
+    targetSales.forEach(s => {
         const d = new Date(s.date);
         timeCounts[d.getHours()]++;
     });

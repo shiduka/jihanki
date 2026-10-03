@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -9,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
     <div id="orientation-warning">
         <div class="icon">📱</div>
@@ -23,110 +22,67 @@
             <div class="mode-switch">
                 <button id="mode-seller" class="mode-btn active">販売者</button>
                 <button id="mode-buyer" class="mode-btn">購入者</button>
+                <button id="mode-admin" class="mode-btn">管理</button>
             </div>
             <div id="machine-switch" class="machine-switch">
                 <!-- 自販機タブはJSで生成 -->
             </div>
-            <button id="menu-btn" class="icon-btn" aria-label="メニュー">⚙️</button>
         </header>
 
         <main class="vending-machine">
-            <!-- 売上サマリー（販売者モード時のみ表示） -->
-            <div id="sales-summary" class="sales-summary hidden">
-                <div class="sales-summary-item">
-                    <span class="sales-label">前日</span>
-                    <span id="yesterday-sales" class="sales-amount">¥0</span>
-                </div>
-                <div class="sales-summary-item">
-                    <span class="sales-label">今日</span>
-                    <span id="today-sales" class="sales-amount">¥0</span>
-                </div>
-            </div>
-            <!-- 一括購入ボタン（購入者モード時のみ表示） -->
-            <div id="bulk-purchase-area" class="bulk-purchase-area hidden">
-                <button id="bulk-purchase-btn" class="action-btn warning">この自販機の商品を一括購入</button>
-            </div>
-            <!-- 一括削除ボタン（販売者モード時のみ表示） -->
-            <div id="bulk-clear-area" class="bulk-purchase-area hidden">
-                <button id="bulk-clear-btn" class="action-btn danger">この自販機の商品を一括削除（売上なし）</button>
-            </div>
-            <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
-                <span>📋 コピー中: <strong id="copy-product-info"></strong></span>
-                <button id="cancel-copy-btn" class="cancel-copy-btn">完了</button>
-            </div>
-            <div id="locker-grid" class="locker-grid">
-                <!-- ロッカーはJSで生成されます -->
-            </div>
-        </main>
-
-        <!-- 購入・解錠モーダル -->
-        <div id="buyer-modal" class="modal hidden">
-            <div class="modal-content">
-                <span class="close-modal">&times;</span>
-                <h2 id="buyer-product-name">商品名</h2>
-                <p id="buyer-product-price" class="price-display">¥0</p>
-                <div class="coin-slot-area">
-                    <p>投入金額: <span id="inserted-amount">0</span>円</p>
-                    <button id="insert-coin-btn" class="action-btn primary">100円投入</button>
-                </div>
-                <button id="unlock-btn" class="action-btn success" disabled>解錠して取り出す</button>
-            </div>
-        </div>
-
-        <!-- 販売者・商品登録モーダル -->
-        <div id="seller-modal" class="modal hidden">
-            <div class="modal-content">
-                <span class="close-modal">&times;</span>
-                <h2>商品登録</h2>
-                <div class="preset-area">
-                    <p>商品名を選択（複数可）:</p>
-                    <div id="preset-buttons" class="preset-grid">
-                        <!-- プリセットボタンはJSで生成 -->
+            <div id="vending-view">
+                <!-- 売上サマリー（販売者モード時のみ表示） -->
+                <div id="sales-summary" class="sales-summary hidden">
+                    <div class="sales-summary-item">
+                        <span class="sales-label">前日</span>
+                        <span id="yesterday-sales" class="sales-amount">¥0</span>
                     </div>
-                    <p style="margin-top: 12px;">または直接入力:</p>
-                    <div id="product-inputs-container">
-                        <!-- 入力行はJSで動的生成 -->
+                    <div class="sales-summary-item">
+                        <span class="sales-label">今日</span>
+                        <span id="today-sales" class="sales-amount">¥0</span>
                     </div>
-                    <button type="button" id="add-product-btn" class="add-product-btn"
-                        onclick="addProductInputRow('')">＋ 商品を追加</button>
                 </div>
-                <div class="price-setting-area">
-                    <p>価格設定:</p>
-                    <div id="price-buttons" class="price-button-grid">
-                        <!-- 価格ボタンはJSで生成 -->
-                    </div>
-                    <p class="selected-price">選択中: <span id="setting-price">¥100</span></p>
+                <!-- 一括購入ボタン（購入者モード時のみ表示） -->
+                <div id="bulk-purchase-area" class="bulk-purchase-area hidden">
+                    <button id="bulk-purchase-btn" class="action-btn warning">この自販機の商品を一括購入</button>
                 </div>
-                <div class="bonus-area">
-                    <label class="toggle-container">
-                        <span>🎁 おまけを入れる</span>
-                        <input type="checkbox" id="bonus-toggle">
-                        <span class="checkmark"></span>
-                    </label>
+                <!-- 一括削除ボタン（販売者モード時のみ表示） -->
+                <div id="bulk-clear-area" class="bulk-purchase-area hidden">
+                    <button id="bulk-clear-btn" class="action-btn danger">この自販機の商品を一括削除（売上なし）</button>
                 </div>
-                <div class="seller-actions">
-                    <button id="register-btn" class="action-btn success">登録して施錠</button>
-                    <button id="copy-product-btn" class="action-btn primary hidden">この商品をコピー</button>
-                    <button id="admin-purchase-btn" class="action-btn warning hidden">管理者購入 (硬貨不要)</button>
-                    <button id="clear-locker-btn" class="action-btn danger hidden">取下げ (売上なし)</button>
+                <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
+                    <span>📋 コピー中: <strong id="copy-product-info"></strong></span>
+                    <button id="cancel-copy-btn" class="cancel-copy-btn">完了</button>
+                </div>
+                <div id="locker-grid" class="locker-grid">
+                    <!-- ロッカーはJSで生成されます -->
                 </div>
             </div>
-        </div>
-
-        <!-- 管理メニューモーダル -->
-        <div id="admin-modal" class="modal hidden">
-            <div class="modal-content large-modal">
-                <span class="close-modal">&times;</span>
-                <h2>管理メニュー</h2>
-
+            
+            <div id="admin-view" class="hidden">
                 <div class="tabs">
-                    <button class="tab-btn active" data-tab="sales">売上管理</button>
+                    <button class="tab-btn active" data-tab="analytics">分析</button>
+                    <button class="tab-btn" data-tab="sales">売上管理</button>
                     <button class="tab-btn" data-tab="machines">自販機設定</button>
                     <button class="tab-btn" data-tab="presets">プリセット</button>
                     <button class="tab-btn" data-tab="data">データ</button>
                 </div>
 
-                <div id="tab-sales" class="tab-content active">
+                <div id="tab-analytics" class="tab-content active">
+                    <div class="analytics-container">
+                        <h3>商品別売上割合 (月別)</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="productPieChart"></canvas>
+                        </div>
+                        <hr>
+                        <h3>時間帯別売上推移 (月別)</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="timeBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-sales" class="tab-content">
                     <div class="sales-controls">
                         <select id="sales-period">
                             <option value="daily">日別</option>
@@ -189,6 +145,9 @@
                             <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
                             <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
                         </div>
+                        <div id="machine-names-list" style="margin-top: 15px;">
+                            <!-- 自販機名称設定リスト -->
+                        </div>
                     </div>
                 </div>
 
@@ -230,10 +189,66 @@
                     </div>
                 </div>
             </div>
+        </main>
+
+        <!-- 購入・解錠モーダル -->
+        <div id="buyer-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2 id="buyer-product-name">商品名</h2>
+                <p id="buyer-product-price" class="price-display">¥0</p>
+                <div class="coin-slot-area">
+                    <p>投入金額: <span id="inserted-amount">0</span>円</p>
+                    <button id="insert-coin-btn" class="action-btn primary">100円投入</button>
+                </div>
+                <button id="unlock-btn" class="action-btn success" disabled>解錠して取り出す</button>
+            </div>
+        </div>
+
+        <!-- 販売者・商品登録モーダル -->
+        <div id="seller-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>商品登録</h2>
+                <div class="preset-area">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <p style="margin:0;">商品名を選択（複数可）:</p>
+                        <button id="clear-product-input-btn" class="action-btn danger" style="padding:4px 8px; font-size:0.85rem; width:auto; margin:0;">クリア</button>
+                    </div>
+                    <div id="preset-buttons" class="preset-grid">
+                        <!-- プリセットボタンはJSで生成 -->
+                    </div>
+                    <p style="margin-top: 12px;">または直接入力:</p>
+                    <div id="product-inputs-container">
+                        <!-- 入力行はJSで動的生成 -->
+                    </div>
+                    <button type="button" id="add-product-btn" class="add-product-btn"
+                        onclick="addProductInputRow('')">＋ 商品を追加</button>
+                </div>
+                <div class="price-setting-area">
+                    <p>価格設定:</p>
+                    <div id="price-buttons" class="price-button-grid">
+                        <!-- 価格ボタンはJSで生成 -->
+                    </div>
+                    <p class="selected-price">選択中: <span id="setting-price">¥100</span></p>
+                </div>
+                <div class="bonus-area">
+                    <label class="toggle-container">
+                        <span>🎁 おまけを入れる</span>
+                        <input type="checkbox" id="bonus-toggle">
+                        <span class="checkmark"></span>
+                    </label>
+                </div>
+                <div class="seller-actions">
+                    <button id="register-btn" class="action-btn success">登録して施錠</button>
+                    <button id="copy-product-btn" class="action-btn primary hidden">この商品をコピー</button>
+                    <button id="admin-purchase-btn" class="action-btn warning hidden">管理者購入 (硬貨不要)</button>
+                    <button id="clear-locker-btn" class="action-btn danger hidden">取下げ (売上なし)</button>
+                </div>
+            </div>
         </div>
 
     </div>
     <script src="app.js"></script>
 </body>
-
 </html>

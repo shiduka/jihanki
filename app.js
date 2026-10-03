@@ -1,6 +1,6 @@
 /**
  * 自動販売機管理アプリ
- * Logic for Warped Shuttle Vending Machine
+ * Logic for Vending Machine
  */
 
 // 定数
@@ -14,28 +14,35 @@ const DEFAULT_PRICE_PRESETS = [100, 150, 200, 300, 400, 500];
 let state = {
     // データ（保存対象）
     data: {
-        lockers: [], // { id, machineId, row, col, isLocked, productName, price, insertedAmount, hasBonus }
-        sales: [],   // { id, date, productName, price, machineId }
+        lockers: [], 
+        sales: [],   
         presets: [...DEFAULT_PRESETS],
-        pricePresets: [...DEFAULT_PRICE_PRESETS], // 金額プリセット
-        machineCount: 2, // 自販機の台数
-        cloudUrl: '',    // GAS WebアプリのURL
-        autoSync: true,   // 自動同期（ポーリング）の有効無効
-        oneClickMode: false // ワンクリック購入
+        pricePresets: [...DEFAULT_PRICE_PRESETS],
+        machineCount: 2,
+        machineNames: {}, // { "1": "店舗前", "2": "駐車場" }
+        cloudUrl: '',
+        autoSync: true,
+        oneClickMode: false
     },
     // UI状態（保存しない）
     currentMachine: 1,
-    mode: 'seller', // 'buyer' or 'seller' - デフォルトは販売者
+    mode: 'seller', // 'buyer', 'seller', 'admin'
     selectedLockerId: null,
     tempPrice: 100,
-    tempAmount: 0, // 購入時の投入金額
+    tempAmount: 0, 
     // コピーモード
     copyMode: false,
-    copyProduct: null, // { productName, price }
-    lastPurchase: null, // { lockerId, saleId } - Undo用
-    isSyncing: false,       // 送信中フラグ
-    lastLocalEditTime: 0    // 最終操作時刻
+    copyProduct: null,
+    copySourceLockerId: null,
+    lastPurchase: null,
+    isSyncing: false,
+    lastLocalEditTime: 0,
+    isDirty: false // クラウドへの送信待ちフラグ
 };
+
+// グラフインスタンス保持用
+let productChartInst = null;
+let timeChartInst = null;
 
 // 初期化
 document.addEventListener('DOMContentLoaded', () => {
@@ -44,20 +51,18 @@ document.addEventListener('DOMContentLoaded', () => {
     renderApp();
     setupEventListeners();
 
-    // クラウド設定があれば初回同期
     if (state.data.cloudUrl) {
         fetchFromCloud();
     }
 
-    // 定期同期設定 (15秒ごとに短縮して検知精度アップ)
+    // 定期同期設定
     setInterval(() => {
-        // モーダルが表示されている（編集中）場合は同期しない
-        const isModalOpen = !document.getElementById('edit-modal').classList.contains('hidden') ||
-            !document.getElementById('buyer-modal').classList.contains('hidden') ||
-            !document.getElementById('admin-modal').classList.contains('hidden');
+        const isModalOpen = !document.getElementById('seller-modal').classList.contains('hidden') ||
+            !document.getElementById('buyer-modal').classList.contains('hidden');
 
-        if (state.data.cloudUrl && state.data.autoSync && !state.copyMode && !isModalOpen) {
-            fetchFromCloud(true); // サイレント更新
+        // 編集中やコピー中、送信待ちデータがある場合は同期しない
+        if (state.data.cloudUrl && state.data.autoSync && !state.copyMode && !isModalOpen && !state.isDirty) {
+            fetchFromCloud(true);
         }
     }, 15000);
 });
@@ -67,16 +72,13 @@ function loadData() {
     if (json) {
         try {
             const parsed = JSON.parse(json);
-            // データのマージ（新しいフィールドがある場合の対応）
             state.data = { ...state.data, ...parsed };
-            // 古いデータ形式からのマイグレーション
             if (state.data.autoSync === undefined) state.data.autoSync = true;
             if (!state.data.presets) state.data.presets = [...DEFAULT_PRESETS];
             if (!state.data.machineCount) state.data.machineCount = 2;
-            // 金額プリセットのマイグレーション
             if (!state.data.pricePresets) state.data.pricePresets = [...DEFAULT_PRICE_PRESETS];
-            // ワンクリック購入のマイグレーション
             if (state.data.oneClickMode === undefined) state.data.oneClickMode = false;
+            if (!state.data.machineNames) state.data.machineNames = {};
         } catch (e) {
             console.error('データ読み込みエラー', e);
         }
@@ -84,23 +86,20 @@ function loadData() {
 }
 
 function saveData() {
-    state.lastLocalEditTime = Date.now(); // 操作時刻を記録
+    state.lastLocalEditTime = Date.now();
+    state.isDirty = true; // 送信待ち状態にする
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
-    // クラウド設定があれば送信
     if (state.data.cloudUrl) {
         pushToCloud();
     }
 }
 
 function initLockers() {
-    // 列が [3, 2, 1] の順（右上が1-1）になっているかチェック
     const isOrderCorrect = state.data.lockers.length > 0 &&
         state.data.lockers[0].col === 3 &&
         state.data.lockers[0].row === 1;
 
     if (state.data.lockers.length === 0 || !state.data.lockers[0].coordNum || !isOrderCorrect) {
-        // 並び順が古い、またはデータがない場合は並び替え・再生成を検討
-        // 既存商品がある場合は、IDを維持したまま並び順(Array index)だけを変える
         if (state.data.lockers.length > 0) {
             sortLockersCorrectly();
         } else {
@@ -115,21 +114,23 @@ function initLockers() {
             if (!existingMachineIds.has(m)) createLockersForMachine(m);
         }
     }
-    saveDataLocally();
+    // バグ修正: undefined な coordNum を持つロッカーの救済
+    state.data.lockers.forEach(l => {
+        if (!l.coordNum) l.coordNum = `${l.col}-${l.row}`;
+        if (!l.machineNum) l.machineNum = l.machineId;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
 }
 
 function sortLockersCorrectly() {
-    // state.data.lockersを、各マシンごとに [3-r, 2-r, 1-r] の順になるよう並び替える
     state.data.lockers.sort((a, b) => {
         if (a.machineId !== b.machineId) return a.machineId - b.machineId;
         if (a.row !== b.row) return a.row - b.row;
-        return b.col - a.col; // c=3, 2, 1 の順
+        return b.col - a.col;
     });
 }
 
 function createLockersForMachine(m) {
-    // 【決定版】標準の左から右(LTR)の並び順を使用します。
-    // 配列の順序を [3列目, 2列目, 1列目] とすることで、物理的に右端が 1番列 になります。
     for (let r = 1; r <= TOTAL_ROWS; r++) {
         for (let c = 3; c >= 1; c--) {
             state.data.lockers.push({
@@ -143,36 +144,53 @@ function createLockersForMachine(m) {
     }
 }
 
+function getMachineName(m) {
+    return state.data.machineNames[m] || `自販機${m}`;
+}
+
 // レンダリング
 function renderApp() {
     renderHeader();
     renderMachineTabs();
-    renderLockers();
-    renderBulkPurchaseArea();
-    renderSalesSummary();
-    renderCopyModeIndicator();
-    renderAdminSales();
-    renderAdminPresets();
-    renderAdminPricePresets();
-    renderMachineSettings();
-    renderDataSettings();
+
+    const vendingView = document.getElementById('vending-view');
+    const adminView = document.getElementById('admin-view');
+
+    if (state.mode === 'admin') {
+        vendingView.classList.add('hidden');
+        adminView.classList.remove('hidden');
+        renderAdminSales();
+        renderAdminPresets();
+        renderAdminPricePresets();
+        renderMachineSettings();
+        renderDataSettings();
+        renderAnalytics();
+    } else {
+        vendingView.classList.remove('hidden');
+        adminView.classList.add('hidden');
+        renderLockers();
+        renderBulkPurchaseArea();
+        renderSalesSummary();
+        renderCopyModeIndicator();
+    }
 }
 
 function renderHeader() {
-    // モード切り替えボタン
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(state.mode === 'buyer' ? 'mode-buyer' : 'mode-seller').classList.add('active');
+    document.getElementById(`mode-${state.mode}`).classList.add('active');
 }
 
 function renderMachineTabs() {
     const container = document.getElementById('machine-switch');
     container.innerHTML = '';
-
+    
+    // 管理モードの時はタブを非表示にする等の制御も可能だが、
+    // 今回は管理モードでもタブを出しておく（自販機ごとの設定切り替え等に使う可能性を考慮）
     for (let m = 1; m <= state.data.machineCount; m++) {
         const btn = document.createElement('button');
         btn.className = `machine-tab ${m === state.currentMachine ? 'active' : ''}`;
         btn.dataset.machine = m;
-        btn.textContent = `自販機${m}`;
+        btn.textContent = getMachineName(m);
         btn.onclick = () => {
             state.currentMachine = m;
             renderApp();
@@ -192,6 +210,7 @@ function renderLockers() {
         let classes = 'locker';
         if (locker.isLocked) classes += ' locked';
         if (state.copyMode && !locker.isLocked) classes += ' copy-target';
+        if (state.copyMode && state.copySourceLockerId === locker.id) classes += ' copy-source';
         el.className = classes;
         el.dataset.id = locker.id;
         el.onclick = () => handleLockerClick(locker);
@@ -204,15 +223,12 @@ function renderLockers() {
         contentDiv.className = 'locker-content';
 
         if (locker.isLocked) {
-            // 複数商品対応: 改行区切りで商品名を分割
             const products = locker.productName.split('\n').filter(p => p.trim());
             const productCount = products.length;
-            // 品数に応じてフォントサイズを変更
             let fontSizeClass = '';
             if (productCount >= 3) fontSizeClass = ' locker-product-sm';
             else if (productCount >= 2) fontSizeClass = ' locker-product-md';
 
-            // 金額別色分け
             const priceColorClass = getPriceColorClass(locker.price);
             if (priceColorClass) el.classList.add(priceColorClass);
 
@@ -222,7 +238,6 @@ function renderLockers() {
                 <div class="locker-price">¥${locker.price}</div>
             `;
 
-            // おまけバッジ (true または 文字列 "true" の場合のみ表示)
             if (locker.hasBonus === true || locker.hasBonus === 'true') {
                 const bonusBadge = document.createElement('span');
                 bonusBadge.className = 'bonus-badge';
@@ -245,7 +260,6 @@ function renderBulkPurchaseArea() {
     const hasProducts = state.data.lockers.some(l => l.machineId === state.currentMachine && l.isLocked);
 
     if (state.mode === 'buyer') {
-        // 購入者モードで一括購入を表示
         if (hasProducts) {
             area.classList.remove('hidden');
             btn.disabled = false;
@@ -256,7 +270,6 @@ function renderBulkPurchaseArea() {
         area.classList.add('hidden');
     }
 
-    // 販売者モードで一括削除を表示
     if (clearAllArea) {
         if (state.mode === 'seller' && hasProducts) {
             clearAllArea.classList.remove('hidden');
@@ -301,14 +314,10 @@ function renderSalesSummary() {
 
 // イベントハンドリング
 function setupEventListeners() {
-    // モード切替
     document.getElementById('mode-buyer').onclick = () => setMode('buyer');
     document.getElementById('mode-seller').onclick = () => setMode('seller');
+    document.getElementById('mode-admin').onclick = () => setMode('admin');
 
-    // メニューボタン
-    document.getElementById('menu-btn').onclick = () => openModal('admin-modal');
-
-    // モーダルを閉じる
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.onclick = () => closeModal();
     });
@@ -332,52 +341,51 @@ function setupEventListeners() {
     document.getElementById('clear-locker-btn').onclick = clearLocker;
     document.getElementById('copy-product-btn').onclick = startCopyMode;
     document.getElementById('cancel-copy-btn').onclick = cancelCopyMode;
+    
+    document.getElementById('clear-product-input-btn').onclick = () => {
+        state.selectedPresets = [];
+        const container = document.getElementById('product-inputs-container');
+        container.innerHTML = '';
+        addProductInputRow('');
+        renderPresetButtons();
+    };
 
-    // --- 一括購入 ---
     document.getElementById('bulk-purchase-btn').onclick = processBulkPurchase;
-    // --- 一括削除（売上なし） ---
     const bulkClearBtn = document.getElementById('bulk-clear-btn');
     if (bulkClearBtn) bulkClearBtn.onclick = processBulkClear;
 
-    // --- 管理モーダル ---
-    const tabs = document.querySelectorAll('.tab-btn');
+    // --- 管理タブ (Admin View 内) ---
+    const tabs = document.querySelectorAll('#admin-view .tab-btn');
     tabs.forEach(tab => {
         tab.onclick = () => {
-            document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#admin-view .tab-btn').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#admin-view .tab-content').forEach(c => c.classList.remove('active'));
             tab.classList.add('active');
             document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+            if (tab.dataset.tab === 'analytics') renderAnalytics();
         };
     });
 
-    // プリセット追加
     document.getElementById('add-preset-btn').onclick = addPreset;
-    // 金額プリセット追加
     const addPricePresetBtn = document.getElementById('add-price-preset-btn');
     if (addPricePresetBtn) addPricePresetBtn.onclick = addPricePreset;
 
-    // 自販機追加・削除
     document.getElementById('add-machine-btn').onclick = addMachine;
     document.getElementById('remove-machine-btn').onclick = removeMachine;
 
-    // データDL/UL
     document.getElementById('download-data-btn').onclick = downloadData;
     document.getElementById('upload-data-btn').onclick = () => document.getElementById('upload-data-input').click();
     document.getElementById('upload-data-input').onchange = uploadData;
 
-    // 売上期間切り替え
     document.getElementById('sales-period').onchange = renderAdminSales;
 
-    // ワンクリック購入切り替え
     document.getElementById('one-click-toggle').onchange = (e) => {
         state.data.oneClickMode = e.target.checked;
         saveData();
     };
 
-    // 全売上削除
     document.getElementById('clear-all-sales-btn').onclick = clearAllSales;
 
-    // クラウドURL編集ロック関連
     const displayArea = document.getElementById('cloud-url-display-area');
     const editArea = document.getElementById('cloud-url-edit-area');
 
@@ -403,13 +411,11 @@ function setupEventListeners() {
         };
     }
 
-    // 同期設定
     document.getElementById('auto-sync-toggle').onchange = (e) => {
         state.data.autoSync = e.target.checked;
         saveData();
     };
 
-    // 手動同期
     document.getElementById('manual-sync-btn').onclick = () => {
         if (!state.data.cloudUrl) return alert('クラウドURLが設定されていません');
         fetchFromCloud();
@@ -417,26 +423,26 @@ function setupEventListeners() {
 }
 
 // アクションロジック
-
 function setMode(mode) {
     state.mode = mode;
+    state.copyMode = false;
+    state.copyProduct = null;
+    state.copySourceLockerId = null;
     renderApp();
 }
 
 function handleLockerClick(locker) {
     state.selectedLockerId = locker.id;
 
-    // コピーモード中の場合
     if (state.copyMode) {
         if (!locker.isLocked) {
-            // 空きロッカーにコピーを貼り付け
             pasteProduct(locker);
         } else {
-            // コピーした（同じ内容の）商品をもう一度クリックで空きに戻す
             if (state.copyProduct &&
                 locker.productName === state.copyProduct.productName &&
-                locker.price === state.copyProduct.price) {
-
+                locker.price === state.copyProduct.price &&
+                locker.id !== state.copySourceLockerId) {
+                
                 updateLocker(locker.id, {
                     isLocked: false,
                     productName: '',
@@ -452,15 +458,16 @@ function handleLockerClick(locker) {
 
     if (state.mode === 'seller') {
         openSellerModal(locker);
-    } else {
+    } else if (state.mode === 'buyer') {
         if (locker.isLocked) {
-            // 購入者モード: 即購入
-            processQuickPurchase(locker);
+            if (state.data.oneClickMode) {
+                processQuickPurchase(locker);
+            } else {
+                openBuyerModal(locker);
+            }
         }
     }
 }
-
-// -- 販売者ロジック --
 
 function openSellerModal(locker) {
     const adminPurchaseBtn = document.getElementById('admin-purchase-btn');
@@ -469,7 +476,6 @@ function openSellerModal(locker) {
     const copyBtn = document.getElementById('copy-product-btn');
     const bonusToggle = document.getElementById('bonus-toggle');
 
-    // 複数入力欄を初期化
     const inputContainer = document.getElementById('product-inputs-container');
     inputContainer.innerHTML = '';
 
@@ -479,7 +485,6 @@ function openSellerModal(locker) {
     let inputRowsAdded = 0;
 
     if (locker.isLocked) {
-        // 既に入ってる場合の編集・取り下げモード
         const products = locker.productName.split('\n').filter(p => p.trim());
         products.forEach(p => {
              addProductInputRow(p);
@@ -493,7 +498,6 @@ function openSellerModal(locker) {
         registerBtn.textContent = "更新";
         if (bonusToggle) bonusToggle.checked = locker.hasBonus || false;
     } else {
-        // 新規登録
         if (state.data.lastRegistered) {
              const names = state.data.lastRegistered.names || [];
              names.forEach(n => {
@@ -517,22 +521,18 @@ function openSellerModal(locker) {
         if (bonusToggle) bonusToggle.checked = defaultBonus;
     }
 
-    // プリセットボタン生成（複数選択対応）
     renderPresetButtons();
-    // 価格ボタン生成
     renderPriceButtons();
-
     updateAddProductBtnVisibility();
     updatePriceDisplay();
     updatePriceButtonSelection();
     openModal('seller-modal');
 }
 
-// 商品入力行を追加
 function addProductInputRow(value) {
     const container = document.getElementById('product-inputs-container');
     const currentRows = container.querySelectorAll('.product-input-row');
-    if (currentRows.length >= 3) return; // 最大3行
+    if (currentRows.length >= 3) return;
 
     const row = document.createElement('div');
     row.className = 'product-input-row';
@@ -548,7 +548,6 @@ function addProductInputRow(value) {
     removeBtn.className = 'remove-input-btn';
     removeBtn.textContent = '✕';
     removeBtn.onclick = () => {
-        // 最低1行は残す
         const rows = container.querySelectorAll('.product-input-row');
         if (rows.length > 1) {
             row.remove();
@@ -569,8 +568,6 @@ function updateAddProductBtnVisibility() {
     addBtn.style.display = currentRows.length >= 3 ? 'none' : '';
 }
 
-// -- コピー機能 --
-
 function renderCopyModeIndicator() {
     const indicator = document.getElementById('copy-mode-indicator');
     const productInfo = document.getElementById('copy-product-info');
@@ -588,6 +585,7 @@ function startCopyMode() {
     if (!locker || !locker.isLocked) return;
 
     state.copyMode = true;
+    state.copySourceLockerId = locker.id;
     state.copyProduct = {
         productName: locker.productName,
         price: locker.price,
@@ -601,12 +599,12 @@ function startCopyMode() {
 function cancelCopyMode() {
     state.copyMode = false;
     state.copyProduct = null;
+    state.copySourceLockerId = null;
     renderApp();
 }
 
 function pasteProduct(locker) {
     if (!state.copyProduct) return;
-
     updateLocker(locker.id, {
         isLocked: true,
         productName: state.copyProduct.productName,
@@ -614,10 +612,8 @@ function pasteProduct(locker) {
         hasBonus: state.copyProduct.hasBonus,
         insertedAmount: 0
     });
-
     saveData();
     renderApp();
-    // コピーモードは継続（連続で貼り付けできるように）
 }
 
 function renderPresetButtons() {
@@ -634,13 +630,10 @@ function renderPresetButtons() {
         btn.onclick = () => {
             const idx = state.selectedPresets.indexOf(p);
             if (idx >= 0) {
-                // 選択解除
                 state.selectedPresets.splice(idx, 1);
                 btn.classList.remove('selected');
             } else {
-                // 入力欄の合計と合わせて3つ以内かチェック
                 const inputContainer = document.getElementById('product-inputs-container');
-                const inputCount = inputContainer ? inputContainer.querySelectorAll('.product-input-row').length : 0;
                 const filledInputs = inputContainer ? [...inputContainer.querySelectorAll('.product-name-input')].filter(i => i.value.trim()).length : 0;
                 if (state.selectedPresets.length + filledInputs >= 3) {
                     alert('商品は最大3つまでです');
@@ -683,14 +676,11 @@ function updatePriceDisplay() {
 }
 
 function registerProduct() {
-    // 入力欄の商品名を収集
     const inputContainer = document.getElementById('product-inputs-container');
     const inputNames = inputContainer
         ? [...inputContainer.querySelectorAll('.product-name-input')].map(i => i.value.trim()).filter(v => v)
         : [];
-    // プリセット選択の商品名を収集
     const presetNames = state.selectedPresets ? [...state.selectedPresets] : [];
-    // 結合（プリセット優先、その後入力欄）
     const allNames = [...presetNames, ...inputNames];
 
     if (allNames.length === 0) {
@@ -706,12 +696,10 @@ function registerProduct() {
         return;
     }
 
-    // 改行区切りで結合
     const combinedName = allNames.join('\n');
     const bonusToggle = document.getElementById('bonus-toggle');
     const hasBonus = bonusToggle ? bonusToggle.checked : false;
 
-    // ----- 新規追加：次回の入力補完のために情報を記憶 -----
     state.data.lastRegistered = {
         names: allNames,
         price: state.tempPrice,
@@ -733,7 +721,6 @@ function registerProduct() {
 
 function clearLocker() {
     if (!confirm('本当に取り下げますか？（売上には計上されません）')) return;
-
     updateLocker(state.selectedLockerId, {
         isLocked: false,
         productName: '',
@@ -749,17 +736,13 @@ function clearLocker() {
 function processAdminPurchase() {
     const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
     if (!locker) return;
-
     addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum, locker.hasBonus || false);
-
-    // ロッカーを空にする
     updateLocker(state.selectedLockerId, {
         isLocked: false,
         productName: '',
         price: 0,
         insertedAmount: 0
     });
-
     saveData();
     closeModal();
     renderApp();
@@ -768,12 +751,10 @@ function processAdminPurchase() {
 
 function processBulkPurchase() {
     const machineLockers = state.data.lockers.filter(l => l.machineId === state.currentMachine && l.isLocked);
-
     if (machineLockers.length === 0) {
         alert('この自販機には商品がありません');
         return;
     }
-
     const totalAmount = machineLockers.reduce((sum, l) => sum + l.price, 0);
     const productCount = machineLockers.length;
 
@@ -781,7 +762,6 @@ function processBulkPurchase() {
         return;
     }
 
-    // 各商品を売上に計上
     machineLockers.forEach(locker => {
         addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum, locker.hasBonus || false);
         updateLocker(locker.id, {
@@ -796,9 +776,6 @@ function processBulkPurchase() {
     renderApp();
     alert(`一括購入が完了しました\n\n売上: ¥${totalAmount}`);
 }
-
-
-// -- 購入者ロジック --
 
 function openBuyerModal(locker) {
     state.tempAmount = 0;
@@ -827,38 +804,28 @@ function updateBuyerModalUI(locker = null) {
 function processPurchase() {
     const locker = state.data.lockers.find(l => l.id === state.selectedLockerId);
     if (!locker) return;
-
     addSalesRecord(locker.productName, locker.price, locker.machineId, null, locker.machineNum, locker.coordNum, locker.hasBonus || false);
-
-    // ロッカーを空にする
     updateLocker(state.selectedLockerId, {
         isLocked: false,
         productName: '',
         price: 0,
         insertedAmount: 0
     });
-
     saveData();
     closeModal();
     renderApp();
     alert('ありがとうございます！商品をお取りください。');
 }
 
-// -- ワンクリック購入 (Quick Purchase) --
-
 function processQuickPurchase(locker) {
     const saleId = Date.now() + Math.random();
     addSalesRecord(locker.productName, locker.price, locker.machineId, saleId, locker.machineNum, locker.coordNum, locker.hasBonus || false);
-
-    // ロッカーを空にする
     updateLocker(locker.id, {
         isLocked: false,
         productName: '',
         price: 0,
         insertedAmount: 0
     });
-
-    // Undo用に記録
     state.lastPurchase = {
         lockerId: locker.id,
         saleId: saleId,
@@ -866,7 +833,6 @@ function processQuickPurchase(locker) {
         price: locker.price,
         machineId: locker.machineId
     };
-
     saveData();
     renderApp();
     showUndoNotification();
@@ -875,7 +841,6 @@ function processQuickPurchase(locker) {
 function showUndoNotification() {
     const existing = document.getElementById('undo-notification');
     if (existing) existing.remove();
-
     const el = document.createElement('div');
     el.id = 'undo-notification';
     el.className = 'undo-notification';
@@ -884,8 +849,6 @@ function showUndoNotification() {
         <button onclick="undoPurchase()">元に戻す</button>
     `;
     document.body.appendChild(el);
-
-    // 5秒後に消す
     setTimeout(() => {
         if (el.parentNode) el.remove();
     }, 5000);
@@ -893,65 +856,52 @@ function showUndoNotification() {
 
 window.undoPurchase = function () {
     if (!state.lastPurchase) return;
-
     const lp = state.lastPurchase;
-    // 売上記録を削除
     state.data.sales = state.data.sales.filter(s => s.id !== lp.saleId);
-
-    // ロッカーを復元
     updateLocker(lp.lockerId, {
         isLocked: true,
         productName: lp.productName,
         price: lp.price,
         insertedAmount: 0
     });
-
     state.lastPurchase = null;
     const el = document.getElementById('undo-notification');
     if (el) el.remove();
-
     saveData();
     renderApp();
     alert('購入を取り消しました');
 };
 
-
-// -- クラウド通信ロジック --
-
 async function fetchFromCloud(silent = false) {
     if (!state.data.cloudUrl) return;
-
-    // 他の操作が行われている最中、または操作直後（5秒以内）は読み込まない
     if (state.isSyncing) return;
-    if (Date.now() - state.lastLocalEditTime < 5000) return;
+    
+    // 送信待ちのデータがある場合は上書きを防ぐ（楽観的排他制御）
+    if (state.isDirty) {
+        if (!silent) console.log('Pending local changes exist. Skipping fetch.');
+        return; 
+    }
 
     if (!silent) console.log('Fetching from cloud...');
-
     try {
         state.isSyncing = true;
         const response = await fetch(state.data.cloudUrl, { cache: 'no-store' });
         const cloudData = await response.json();
 
-        // 受信中にもしローカルで操作があったら、そのデータは破棄して中断（ローカル優先）
-        if (Date.now() - state.lastLocalEditTime < 3000) {
+        // 取得中にローカルで新たな操作が行われた場合は破棄
+        if (state.isDirty) {
             state.isSyncing = false;
             return;
         }
 
         if (cloudData && cloudData.lockers) {
-            // 他ユーザーのアクティビティ確認 (1分以内)
             if (cloudData.lastActiveTime) {
                 const diff = Date.now() - cloudData.lastActiveTime;
-                state.otherUserActive = diff < 60000;
-                document.getElementById('activity-warning').classList.toggle('hidden', !state.otherUserActive);
+                document.getElementById('activity-warning').classList.toggle('hidden', diff < 60000);
             }
-
-            // 設定の同期
             if (cloudData.oneClickMode !== undefined) {
                 state.data.oneClickMode = (cloudData.oneClickMode === true || cloudData.oneClickMode === "true");
             }
-
-            // ローカルデータをクラウドのもので更新（日付化対策 & ソート強制）
             state.data.lockers = (cloudData.lockers || []).map(l => {
                 if (!(l.coordNum && typeof l.coordNum === 'string' && l.coordNum.includes('-'))) {
                     if (l.row && l.col) l.coordNum = `${l.col}-${l.row}`;
@@ -961,21 +911,20 @@ async function fetchFromCloud(silent = false) {
                 l.col = parseInt(l.col);
                 return l;
             });
-            sortLockersCorrectly(); // ここで強制ソート
+            sortLockersCorrectly();
 
             state.data.sales = cloudData.sales || [];
             state.data.presets = cloudData.presets || state.data.presets;
             state.data.machineCount = parseInt(cloudData.machineCount) || state.data.machineCount;
 
             initLockers();
-
-            saveDataLocally();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
             renderApp();
             if (!silent) console.log('Cloud sync complete');
         }
     } catch (err) {
         console.error('Cloud fetch error:', err);
-        if (!silent) alert('クラウドからのデータ取得に失敗しました。URLを確認してください。');
+        if (!silent) alert('クラウドからのデータ取得に失敗しました。');
     } finally {
         state.isSyncing = false;
     }
@@ -983,7 +932,6 @@ async function fetchFromCloud(silent = false) {
 
 async function pushToCloud() {
     if (!state.data.cloudUrl) return;
-
     state.isSyncing = true;
     const payload = {
         lockers: state.data.lockers,
@@ -992,32 +940,23 @@ async function pushToCloud() {
         machineCount: state.data.machineCount,
         oneClickMode: state.data.oneClickMode
     };
-
     try {
         await fetch(state.data.cloudUrl, {
             method: 'POST',
-            mode: 'no-cors', // GASへのPOSTはno-corsが必要な場合がある
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         console.log('Pushed to cloud');
+        state.isDirty = false; // 送信成功
     } catch (err) {
         console.error('Cloud push error:', err);
+        // エラー時は isDirty を true のままにし、次回同期で再送する
     } finally {
         state.isSyncing = false;
     }
 }
 
-function saveDataLocally() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
-}
-
-
-// -- 共通・ヘルパー --
-
-// 金額に応じたCSSクラスを返す
 function getPriceColorClass(price) {
     if (price <= 100) return 'price-tier-1';
     if (price <= 200) return 'price-tier-2';
@@ -1026,30 +965,16 @@ function getPriceColorClass(price) {
     return 'price-tier-5';
 }
 
-// 一括削除（売上なし）
 function processBulkClear() {
     const machineLockers = state.data.lockers.filter(l => l.machineId === state.currentMachine && l.isLocked);
-
-    if (machineLockers.length === 0) {
-        alert('この自販機には商品がありません');
-        return;
-    }
-
-    const productCount = machineLockers.length;
-    if (!confirm(`自販機${state.currentMachine}の商品を一括削除しますか？\n\n商品数: ${productCount}個\n\n※売上には計上されません。すべてのロッカーが空になります。`)) {
-        return;
-    }
+    if (machineLockers.length === 0) return alert('この自販機には商品がありません');
+    if (!confirm(`自販機${state.currentMachine}の商品を一括削除しますか？\n\n※売上には計上されません。`)) return;
 
     machineLockers.forEach(locker => {
         updateLocker(locker.id, {
-            isLocked: false,
-            productName: '',
-            price: 0,
-            hasBonus: false,
-            insertedAmount: 0
+            isLocked: false, productName: '', price: 0, hasBonus: false, insertedAmount: 0
         });
     });
-
     saveData();
     renderApp();
 }
@@ -1061,12 +986,9 @@ function updateLocker(id, Updates) {
     }
 }
 
-// 日本時間 (JST) の日時文字列を取得
 function getJSTDateTime() {
     const now = new Date();
     const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    // スプレッドシート側で文字列として認識させやすくするため、
-    // または日付として誤認された際も秒まで確実に残るようにフォーマット
     return jstNow.toISOString().replace('T', ' ').replace(/\..+/, '');
 }
 
@@ -1094,17 +1016,9 @@ function closeModal() {
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>"']/g, function (m) {
-        return {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        }[m];
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
     });
 }
-
-// -- 管理機能（売上・プリセット・データ・自販機設定） --
 
 function renderAdminSales() {
     const tbody = document.getElementById('sales-table-body');
@@ -1112,7 +1026,6 @@ function renderAdminSales() {
     const period = document.getElementById('sales-period').value;
 
     tbody.innerHTML = '';
-
     let filtered = [...state.data.sales];
     const now = new Date();
 
@@ -1122,14 +1035,12 @@ function renderAdminSales() {
             return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         });
     } else {
-        // daily (today)
         filtered = filtered.filter(s => {
             const d = new Date(s.date);
             return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         });
     }
 
-    // 新しい順
     filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     let sum = 0;
@@ -1139,7 +1050,7 @@ function renderAdminSales() {
         const d = new Date(sale.date);
         const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-        const locInfo = sale.coordNum ? `<small style="color:#888">[自販機${sale.machineNum || sale.machineId} ${sale.coordNum}]</small>` : '';
+        const locInfo = sale.coordNum ? `<small style="color:#888">[${getMachineName(sale.machineNum || sale.machineId)} ${sale.coordNum}]</small>` : '';
         const bonusIcon = sale.hasBonus ? '🎁 ' : '';
         tr.innerHTML = `
             <td>${dateStr}</td>
@@ -1153,17 +1064,15 @@ function renderAdminSales() {
     totalEl.textContent = `合計: ¥${sum}`;
 }
 
-// グローバルスコープに公開（HTMLのonclickから呼ぶため）
 window.deleteSale = function (id) {
     if (!confirm('この売上記録を削除しますか？')) return;
-    // クラウド経由でIDが文字列になっている場合があるため、文字列に変換して比較する
     state.data.sales = state.data.sales.filter(s => String(s.id) !== String(id));
     saveData();
     renderApp();
 };
 
 function clearAllSales() {
-    if (!confirm('すべての売上データを削除しますか？\n（テストデータの消去などに使用してください）')) return;
+    if (!confirm('すべての売上データを削除しますか？')) return;
     state.data.sales = [];
     saveData();
     renderApp();
@@ -1173,7 +1082,6 @@ function clearAllSales() {
 function renderAdminPresets() {
     const list = document.getElementById('edit-preset-list');
     list.innerHTML = '';
-
     state.data.presets.forEach((p, index) => {
         const div = document.createElement('div');
         div.className = 'preset-list-item';
@@ -1203,12 +1111,10 @@ window.removePreset = function (index) {
     renderAdminPresets();
 };
 
-// -- 金額プリセット管理 --
 function renderAdminPricePresets() {
     const list = document.getElementById('edit-price-preset-list');
     if (!list) return;
     list.innerHTML = '';
-
     const presets = state.data.pricePresets || DEFAULT_PRICE_PRESETS;
     presets.forEach((p, index) => {
         const div = document.createElement('div');
@@ -1226,12 +1132,9 @@ function addPricePreset() {
     const val = parseInt(input.value.trim());
     if (val && val > 0) {
         if (!state.data.pricePresets) state.data.pricePresets = [...DEFAULT_PRICE_PRESETS];
-        if (state.data.pricePresets.includes(val)) {
-            alert('この金額は既に登録されています');
-            return;
-        }
+        if (state.data.pricePresets.includes(val)) return alert('この金額は既に登録されています');
         state.data.pricePresets.push(val);
-        state.data.pricePresets.sort((a, b) => a - b); // 昇順ソート
+        state.data.pricePresets.sort((a, b) => a - b);
         input.value = '';
         saveData();
         renderAdminPricePresets();
@@ -1251,69 +1154,70 @@ function renderMachineSettings() {
     document.getElementById('one-click-toggle').checked = state.data.oneClickMode;
     document.getElementById('auto-sync-toggle').checked = state.data.autoSync;
     document.getElementById('cloud-url-input').value = state.data.cloudUrl || '';
+
+    // 名称設定リスト
+    const list = document.getElementById('machine-names-list');
+    if (list) {
+        list.innerHTML = '<p>各自販機の名称設定:</p>';
+        for (let m = 1; m <= state.data.machineCount; m++) {
+            const div = document.createElement('div');
+            div.className = 'machine-name-item';
+            div.innerHTML = `
+                <span>ID ${m}:</span>
+                <input type="text" id="machine-name-input-${m}" value="${escapeHtml(getMachineName(m))}" placeholder="自販機${m}">
+                <button class="action-btn primary" style="padding: 8px 12px; margin: 0; width: auto;" onclick="saveMachineName(${m})">保存</button>
+            `;
+            list.appendChild(div);
+        }
+    }
 }
 
-function renderDataSettings() {
-    // データ系のUI更新があればここ
-}
+window.saveMachineName = function(m) {
+    const input = document.getElementById(`machine-name-input-${m}`);
+    if (input) {
+        const val = input.value.trim();
+        if (val) {
+            state.data.machineNames[m] = val;
+        } else {
+            delete state.data.machineNames[m];
+        }
+        saveData();
+        renderMachineTabs();
+        alert('保存しました');
+    }
+};
+
+function renderDataSettings() {}
 
 function addMachine() {
     state.data.machineCount++;
-    // 新しい自販機のロッカーを生成
     const m = state.data.machineCount;
-    for (let r = 1; r <= TOTAL_ROWS; r++) {
-        for (let c = 1; c <= TOTAL_COLS; c++) {
-            state.data.lockers.push({
-                id: `${m}-${r}-${c}`,
-                machineId: m,
-                row: r,
-                col: c,
-                isLocked: false,
-                productName: '',
-                price: 0,
-                insertedAmount: 0
-            });
-        }
-    }
+    createLockersForMachine(m);
     saveData();
     renderApp();
     alert(`自販機${m}を追加しました`);
 }
 
 function removeMachine() {
-    if (state.data.machineCount <= 1) {
-        alert('最低1台は必要です');
-        return;
-    }
-
+    if (state.data.machineCount <= 1) return alert('最低1台は必要です');
     const m = state.data.machineCount;
     const machineLockers = state.data.lockers.filter(l => l.machineId === m);
     const hasProducts = machineLockers.some(l => l.isLocked);
 
-    if (hasProducts) {
-        if (!confirm(`自販機${m}には商品が入っています。削除すると商品データも消えますが、よろしいですか？`)) {
-            return;
-        }
-    } else {
-        if (!confirm(`自販機${m}を削除しますか？`)) {
-            return;
-        }
-    }
+    if (hasProducts && !confirm(`自販機${m}には商品が入っています。削除すると商品データも消えますが、よろしいですか？`)) return;
+    if (!hasProducts && !confirm(`自販機${m}を削除しますか？`)) return;
 
-    // ロッカーデータを削除
     state.data.lockers = state.data.lockers.filter(l => l.machineId !== m);
+    delete state.data.machineNames[m];
     state.data.machineCount--;
 
-    // 削除した自販機を表示中だった場合は1に戻す
     if (state.currentMachine > state.data.machineCount) {
         state.currentMachine = 1;
     }
-
     saveData();
     renderApp();
     alert(`自販機${m}を削除しました`);
 }
-
 
 function downloadData() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.data));
@@ -1336,9 +1240,7 @@ function uploadData() {
             const json = JSON.parse(e.target.result);
             if (json && json.lockers) {
                 state.data = json;
-                // マイグレーション
                 if (!state.data.machineCount) {
-                    // 既存のロッカーから最大machineIdを取得
                     const maxMachine = Math.max(...state.data.lockers.map(l => l.machineId));
                     state.data.machineCount = maxMachine || 2;
                 }
@@ -1349,7 +1251,6 @@ function uploadData() {
                 alert('データ形式が正しくありません');
             }
         } catch (err) {
-            console.error(err);
             alert('ファイルの読み込みに失敗しました');
         }
         input.value = '';
@@ -1358,14 +1259,89 @@ function uploadData() {
 }
 
 // ---------------------------------------------------------
-// 画面の向き制御 (JS実装)
+// 分析チャート (Chart.js)
+// ---------------------------------------------------------
+function renderAnalytics() {
+    if (typeof Chart === 'undefined') return;
+
+    const now = new Date();
+    // 今月の売上に絞る
+    const currentMonthSales = state.data.sales.filter(s => {
+        const d = new Date(s.date);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+
+    // --- 商品別集計 ---
+    const productCounts = {};
+    currentMonthSales.forEach(s => {
+        const names = s.productName.split('\n').map(n=>n.trim()).filter(n=>n);
+        names.forEach(n => {
+            productCounts[n] = (productCounts[n] || 0) + 1;
+        });
+    });
+
+    const pieLabels = Object.keys(productCounts);
+    const pieData = Object.values(productCounts);
+    const pieColors = ['#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#f44336'];
+
+    if (productChartInst) productChartInst.destroy();
+    const ctxPie = document.getElementById('productPieChart').getContext('2d');
+    productChartInst = new Chart(ctxPie, {
+        type: 'pie',
+        data: {
+            labels: pieLabels,
+            datasets: [{
+                data: pieData,
+                backgroundColor: pieColors.slice(0, pieLabels.length),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right' }
+            }
+        }
+    });
+
+    // --- 時間帯別集計 ---
+    const timeCounts = new Array(24).fill(0);
+    currentMonthSales.forEach(s => {
+        const d = new Date(s.date);
+        timeCounts[d.getHours()]++;
+    });
+
+    if (timeChartInst) timeChartInst.destroy();
+    const ctxBar = document.getElementById('timeBarChart').getContext('2d');
+    timeChartInst = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: Array.from({length: 24}, (_, i) => `${i}時`),
+            datasets: [{
+                label: '売上回数',
+                data: timeCounts,
+                backgroundColor: '#64B5F6'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+}
+
+// ---------------------------------------------------------
+// 画面の向き制御 (緩和)
 // ---------------------------------------------------------
 function initOrientationControl() {
     const warningEl = document.getElementById('orientation-warning');
     if (!warningEl) return;
 
     const checkOrientation = () => {
-        // 1. 入力中（キーボード表示中）は警告を出さない
         const activeTag = document.activeElement ? document.activeElement.tagName : '';
         if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
             warningEl.classList.remove('visible');
@@ -1373,59 +1349,38 @@ function initOrientationControl() {
             return;
         }
 
-        // 2. 向きの判定
         let isLandscape = false;
-
-        // Modern API
         if (screen.orientation && screen.orientation.type) {
             isLandscape = screen.orientation.type.includes('landscape');
-        }
-        // iOS / Older WebKit
-        else if (typeof window.orientation !== 'undefined') {
+        } else if (typeof window.orientation !== 'undefined') {
             isLandscape = (Math.abs(window.orientation) === 90);
-        }
-        // Fallback (サイズ比)
-        else {
+        } else {
             isLandscape = (window.innerWidth > window.innerHeight);
         }
 
-        // 3. PC（幅広かつ高さもある）の場合は除外したいが、
-        // 今回の要件は「スマホで横にしたら警告」なので、
-        // 画面幅がモバイルサイズ(900px以下)の場合のみ警告を出す
-        if (window.innerWidth > 900) {
+        // スマホ(縦に細長い端末)を横にした時だけ警告する。
+        // iPad等のタブレット（幅が広い、または高さが十分ある）は許容する。
+        if (window.innerHeight > 500 || window.innerWidth > 900) {
             isLandscape = false;
         }
 
-        // 4. 表示切り替え
         if (isLandscape) {
             warningEl.classList.add('visible');
-            document.body.style.overflow = 'hidden'; // スクロール防止
+            document.body.style.overflow = 'hidden';
         } else {
             warningEl.classList.remove('visible');
             document.body.style.overflow = '';
         }
     };
 
-    // イベントリスナー登録
     window.addEventListener('resize', checkOrientation);
     window.addEventListener('orientationchange', checkOrientation);
-
-    // 入力フォーカスの変化でも再チェック（キーボード開閉直後の誤判定防止）
     document.addEventListener('focusin', () => {
-        // フォーカス時は即座に警告を消す
         warningEl.classList.remove('visible');
         document.body.style.overflow = '';
     });
-
-    document.addEventListener('focusout', () => {
-        // フォーカスが外れたら少し待ってからチェック（キーボードが閉じる時間を考慮）
-        setTimeout(checkOrientation, 300);
-    });
-
-    // 初期チェック
+    document.addEventListener('focusout', () => setTimeout(checkOrientation, 300));
     checkOrientation();
 }
 
-// 起動時に設定
 document.addEventListener('DOMContentLoaded', initOrientationControl);
-

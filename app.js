@@ -75,7 +75,7 @@ function loadData() {
             const parsed = JSON.parse(json);
             state.data = { ...state.data, ...parsed };
             if (state.data.autoSync === undefined) state.data.autoSync = true;
-            if (!state.data.presets) state.data.presets = [...DEFAULT_PRESETS];
+            if (!state.data.presets || state.data.presets.length === 0) state.data.presets = [...DEFAULT_PRESETS];
             if (!state.data.machineCount) state.data.machineCount = 2;
             if (!state.data.pricePresets) state.data.pricePresets = [...DEFAULT_PRICE_PRESETS];
             if (state.data.oneClickMode === undefined) state.data.oneClickMode = false;
@@ -160,7 +160,7 @@ function renderApp() {
 
     if (state.mode === 'admin') {
         vendingView.classList.add('hidden');
-        machineSwitch.classList.add('hidden');
+        machineSwitch.style.display = 'none';
         adminView.classList.remove('hidden');
         renderAdminSales();
         renderAdminPresets();
@@ -170,7 +170,7 @@ function renderApp() {
         renderAnalytics();
     } else {
         vendingView.classList.remove('hidden');
-        machineSwitch.classList.remove('hidden');
+        machineSwitch.style.display = '';
         adminView.classList.add('hidden');
         renderLockers();
         renderBulkPurchaseArea();
@@ -382,18 +382,29 @@ function setupEventListeners() {
     document.getElementById('upload-data-input').onchange = uploadData;
 
     // 月選択ピッカーの初期化とイベント
-    const monthPicker = document.getElementById('admin-month-picker');
-    if (monthPicker) {
-        if (!state.adminTargetMonth) {
-            const now = new Date();
-            state.adminTargetMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        }
-        monthPicker.value = state.adminTargetMonth;
-        monthPicker.onchange = (e) => {
-            state.adminTargetMonth = e.target.value;
-            renderAdminSales();
-            renderAnalytics();
-        };
+    const analyticsPicker = document.getElementById('analytics-month-picker');
+    const salesPicker = document.getElementById('sales-month-picker');
+    
+    if (!state.adminTargetMonth) {
+        const now = new Date();
+        state.adminTargetMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    const updateMonth = (e) => {
+        state.adminTargetMonth = e.target.value;
+        if (analyticsPicker) analyticsPicker.value = state.adminTargetMonth;
+        if (salesPicker) salesPicker.value = state.adminTargetMonth;
+        renderAdminSales();
+        renderAnalytics();
+    };
+
+    if (analyticsPicker) {
+        analyticsPicker.value = state.adminTargetMonth;
+        analyticsPicker.onchange = updateMonth;
+    }
+    if (salesPicker) {
+        salesPicker.value = state.adminTargetMonth;
+        salesPicker.onchange = updateMonth;
     }
 
     document.getElementById('one-click-toggle').onchange = (e) => {
@@ -931,7 +942,13 @@ async function fetchFromCloud(silent = false) {
             sortLockersCorrectly();
 
             state.data.sales = cloudData.sales || [];
-            state.data.presets = cloudData.presets || state.data.presets;
+            
+            if (cloudData.presets && cloudData.presets.length > 0) {
+                state.data.presets = cloudData.presets;
+            } else if (!state.data.presets || state.data.presets.length === 0) {
+                state.data.presets = [...DEFAULT_PRESETS];
+            }
+
             state.data.machineCount = parseInt(cloudData.machineCount) || state.data.machineCount;
 
             initLockers();

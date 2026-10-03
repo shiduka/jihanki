@@ -68,13 +68,12 @@
                     <button class="tab-btn" data-tab="data">データ</button>
                 </div>
 
-                <div id="admin-month-selector" style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
-                    <label for="admin-month-picker" style="font-weight: bold; color: var(--primary-dark);">表示月:</label>
-                    <input type="month" id="admin-month-picker" style="padding: 6px 10px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit; font-size: 1rem;">
-                </div>
-
                 <div id="tab-analytics" class="tab-content active">
                     <div class="analytics-container">
+                        <div style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                            <label for="analytics-month-picker" style="font-weight: bold; color: var(--primary-dark);">表示月:</label>
+                            <input type="month" id="analytics-month-picker" class="month-picker" style="padding: 6px 10px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit; font-size: 1rem;">
+                        </div>
                         <h3>商品別売上割合</h3>
                         <div class="chart-wrapper">
                             <canvas id="productPieChart"></canvas>
@@ -88,6 +87,10 @@
                 </div>
 
                 <div id="tab-sales" class="tab-content">
+                    <div style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                        <label for="sales-month-picker" style="font-weight: bold; color: var(--primary-dark);">表示月:</label>
+                        <input type="month" id="sales-month-picker" class="month-picker" style="padding: 6px 10px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit; font-size: 1rem;">
+                    </div>
                     <div class="sales-controls" style="justify-content: flex-end;">
                         <span id="total-sales" style="font-weight: bold; font-size: 1.1rem; color: var(--primary-dark);">合計: ¥0</span>
                     </div>

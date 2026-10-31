@@ -1,0 +1,1014 @@
+:root {
+    --primary-color: #4CAF50;
+    --primary-dark: #388E3C;
+    --secondary-color: #8BC34A;
+    --accent-color: #FFC107;
+    --danger-color: #f44336;
+    --text-color: #333;
+    --bg-color: #f5f5f5;
+    --locker-bg: #fff;
+    --locker-empty: #e0e0e0;
+    --locker-border: #ccc;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+}
+
+#app {
+    width: 100%;
+    max-width: 600px;
+    background: white;
+    padding: 15px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+/* ヘッダー */
+.app-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 15px;
+    position: relative;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 12px;
+}
+
+.app-header h1 {
+    margin: 0;
+    text-align: center;
+    font-size: 1.6rem;
+    color: var(--primary-dark);
+}
+
+/* 他ユーザーの同時操作警告バー */
+.activity-warning {
+    background: #FFF3E0;
+    color: #E65100;
+    border: 1px solid #FFB74D;
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.mode-switch,
+.machine-switch {
+    display: flex;
+    background: #eee;
+    padding: 4px;
+    border-radius: 25px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mode-btn,
+.machine-tab {
+    flex: 1;
+    min-width: 70px;
+    border: none;
+    background: transparent;
+    padding: 12px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    font-family: inherit;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+    white-space: nowrap;
+}
+
+.mode-btn.active,
+.machine-tab.active {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 購入者タブ: 緑系 */
+.mode-btn.active#mode-buyer {
+    background: #E8F5E9;
+    color: var(--primary-dark);
+}
+
+/* 販売者タブ: ピンク系 */
+.mode-btn.active#mode-seller {
+    background: #FCE4EC;
+    color: #E91E63;
+}
+
+/* 管理タブ: 青系 */
+.mode-btn.active#mode-admin {
+    background: #E3F2FD;
+    color: #1976D2;
+}
+
+/* 自販機タブ: アクティブ時は緑系 */
+.machine-tab.active {
+    background: #C8E6C9;
+    color: var(--primary-dark);
+}
+
+.icon-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px;
+}
+
+/* 売上サマリー */
+.sales-summary {
+    display: flex;
+    justify-content: space-around;
+    background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+    border-radius: 10px;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border: 2px solid var(--primary-color);
+}
+
+.sales-summary.hidden {
+    display: none;
+}
+
+.copy-mode-indicator {
+    margin-bottom: 15px;
+}
+
+.sales-summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.sales-label {
+    font-size: 1rem;
+    color: #666;
+    font-weight: bold;
+}
+
+.sales-amount {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-dark);
+}
+
+/* 一括購入・一括削除エリア */
+.bulk-purchase-area {
+    margin-bottom: 15px;
+}
+
+.bulk-purchase-area.hidden {
+    display: none;
+}
+
+.locker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.locker {
+    aspect-ratio: 1;
+    background: var(--locker-empty);
+    border: 2px solid var(--locker-border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 5px 5px 8px;
+    transition: transform 0.1s;
+    user-select: none;
+    position: relative;
+    min-height: 90px;
+}
+
+/* 金額別ロッカー色分け */
+/* ~¥100 緑 */
+.locker.locked.price-tier-1 {
+    background: #E8F5E9;
+    border-color: #81C784;
+}
+
+/* ~¥200 青 */
+.locker.locked.price-tier-2 {
+    background: #E3F2FD;
+    border-color: #64B5F6;
+}
+
+/* ~¥300 黄 */
+.locker.locked.price-tier-3 {
+    background: #FFF8E1;
+    border-color: #FFD54F;
+}
+
+/* ~¥400 オレンジ */
+.locker.locked.price-tier-4 {
+    background: #FFF3E0;
+    border-color: #FFB74D;
+}
+
+/* ¥500~ ピンク */
+.locker.locked.price-tier-5 {
+    background: #FCE4EC;
+    border-color: #F06292;
+}
+
+.locker:active {
+    transform: scale(0.95);
+}
+
+.locker.locked {
+    background: #E8F5E9;
+    border-color: var(--primary-color);
+}
+
+.locker-id {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #666;
+}
+
+.locker-content {
+    text-align: center;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+}
+
+.locker-product {
+    font-weight: bold;
+    font-size: 1.15rem;
+    margin-bottom: 4px;
+    text-align: center;
+    word-break: break-all;
+}
+
+.locker-price {
+    background: var(--primary-color);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.locker-status {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* モーダル */
+.modal {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 20px;
+    opacity: 1;
+    transition: opacity 0.2s;
+    overflow-y: auto;
+}
+
+.modal.hidden {
+    display: none;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: var(--radius);
+    width: 95%;
+    max-width: 400px;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.modal-content.large-modal {
+    max-width: 500px;
+}
+
+.close-modal {
+    position: absolute;
+    top: 12px;
+    right: 15px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 5px;
+}
+
+h2 {
+    margin-top: 0;
+    color: var(--primary-dark);
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+/* ボタン・コントロール類 */
+.action-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.15rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+    font-family: inherit;
+    touch-action: manipulation;
+}
+
+.action-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.action-btn.primary {
+    background: var(--secondary-color);
+    color: #fff;
+}
+
+.action-btn.success {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.action-btn.warning {
+    background: var(--accent-color);
+    color: #333;
+}
+
+.action-btn.danger {
+    background: var(--danger-color);
+    color: #fff;
+}
+
+.price-display {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--primary-dark);
+    text-align: center;
+    margin: 10px 0;
+}
+
+.selected-price {
+    text-align: center;
+    font-size: 1.1rem;
+    margin: 10px 0;
+}
+
+.selected-price span {
+    font-weight: bold;
+    color: var(--primary-dark);
+    font-size: 1.3rem;
+}
+
+/* 価格ボタングリッド */
+.price-button-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.price-btn {
+    padding: 15px 10px;
+    border: 2px solid var(--primary-color);
+    border-radius: 8px;
+    background: white;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.price-btn:active,
+.price-btn.selected {
+    background: var(--primary-color);
+    color: white;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.preset-btn {
+    padding: 12px 8px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: background 0.2s;
+}
+
+.preset-btn:active {
+    background: #f0f0f0;
+}
+
+.preset-btn.selected {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.custom-input-area input,
+.add-preset-form input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 1rem;
+    margin-top: 8px;
+}
+
+/* 複数商品フォントサイズ */
+.locker-product-md {
+    font-size: 0.95rem !important;
+}
+
+.locker-product-sm {
+    font-size: 0.85rem !important;
+}
+
+/* おまけバッジ */
+.bonus-badge {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+/* 商品入力行 */
+.product-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.product-name-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.remove-input-btn {
+    background: #ffebee;
+    color: var(--danger-color);
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.add-product-btn {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+}
+
+.add-product-btn:active {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* おまけエリア */
+.bonus-area {
+    margin: 12px 0;
+    padding: 10px;
+    background: #fff8e1;
+    border-radius: 8px;
+    border: 1px solid #ffe082;
+}
+
+/* 管理タブ */
+.tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tab-btn {
+    padding: 8px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    opacity: 0.6;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.tab-btn.active {
+    opacity: 1;
+    border-bottom-color: var(--primary-color);
+    font-weight: bold;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 表示月セレクタバー */
+.month-selector-bar {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.month-selector-label {
+    font-weight: bold;
+    color: var(--primary-dark);
+}
+
+.month-picker {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+/* 自販機・一般設定 */
+.setting-item {
+    padding: 15px 0;
+}
+
+.cloud-setting {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.cloud-setting input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.cloud-setting .action-btn {
+    width: auto;
+    margin: 0;
+    padding: 10px 15px;
+}
+
+/* クラウド設定編集エリア */
+.cloud-setting-edit {
+    background: #f9f9f9;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-top: 8px;
+}
+
+.cloud-input-group {
+    margin-bottom: 10px;
+}
+
+.cloud-input-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #555;
+}
+
+.cloud-input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.cloud-edit-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.cloud-edit-buttons .action-btn {
+    flex: 1;
+    padding: 10px;
+    margin-top: 4px;
+}
+
+.setting-desc {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 8px;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #eee;
+}
+
+.text-danger {
+    color: var(--danger-color);
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* トグルスイッチ */
+.toggle-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.toggle-container input {
+    display: none;
+}
+
+.checkmark {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background-color: #ccc;
+    border-radius: 13px;
+    transition: background-color 0.2s;
+}
+
+.checkmark::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background-color: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+}
+
+input:checked+.checkmark {
+    background-color: var(--primary-color);
+}
+
+input:checked+.checkmark::after {
+    transform: translateX(24px);
+}
+
+.machine-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+/* 売上テーブル */
+.sales-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.sales-controls select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-family: inherit;
+}
+
+.sales-list-container {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    -webkit-overflow-scrolling: touch;
+}
+
+#sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+#sales-table th,
+#sales-table td {
+    padding: 8px 6px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+#sales-table th {
+    background: #f9f9f9;
+}
+
+.delete-record-btn {
+    background: #ffebee;
+    color: var(--danger-color);
+    border: none;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.preset-list-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    align-items: center;
+}
+
+.remove-preset-btn {
+    color: var(--danger-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 5px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* コピーモード */
+.copy-mode-indicator {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border: 2px solid #2196F3;
+    border-radius: 8px;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+}
+
+.copy-mode-indicator span {
+    flex: 1;
+}
+
+.cancel-copy-btn {
+    background: #fff;
+    border: 1px solid #2196F3;
+    color: #2196F3;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+.locker.copy-target {
+    border: 3px dashed #2196F3 !important;
+    animation: pulse-border 1s infinite;
+}
+
+@keyframes pulse-border {
+    0%,
+    100% {
+        border-color: #2196F3;
+    }
+
+    50% {
+        border-color: #90CAF9;
+    }
+}
+
+/* 購入取り消し（Undo）通知 */
+.undo-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 0.95rem;
+}
+
+.undo-notification button {
+    background: var(--accent-color);
+    border: none;
+    color: #333;
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* スマホ向け微調整 */
+@media (max-width: 400px) {
+    .locker-product {
+        font-size: 0.85rem;
+    }
+
+    .locker-price {
+        font-size: 0.75rem;
+    }
+
+    .price-btn {
+        padding: 12px 8px;
+        font-size: 1rem;
+    }
+
+    .preset-btn {
+        padding: 10px 6px;
+        font-size: 0.85rem;
+    }
+}
+
+/* 縦向き警告（JS制御） */
+#orientation-warning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 9999;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+#orientation-warning.visible {
+    display: flex;
+}
+
+#orientation-warning .icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    animation: rotate-phone 2s infinite;
+}
+
+#orientation-warning p {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--primary-dark);
+}
+
+@keyframes rotate-phone {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(90deg);
+    }
+
+    50% {
+        transform: rotate(90deg);
+    }
+
+    75% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+/* ビューの切り替え */
+#vending-view.hidden {
+    display: none;
+}
+
+#admin-view {
+    background: white;
+}
+
+#admin-view.hidden {
+    display: none;
+}
+
+/* 分析グラフ用 */
+.analytics-container {
+    padding: 10px;
+}
+
+.analytics-container h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: var(--primary-dark);
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    margin-bottom: 20px;
+}
+
+/* コピー元のロッカー強調 */
+.locker.copy-source {
+    border: 3px solid #2196F3 !important;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+    transform: scale(0.98);
+}
+
+/* 自販機名称設定リスト */
+.machine-name-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.machine-name-item input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}

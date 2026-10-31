@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- リファラー情報を外部に送信しない（URL漏洩防止） -->
+    <meta name="referrer" content="no-referrer">
+    <!-- コンテンツセキュリティポリシー（XSS対策） -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;">
+    <title>自動販売機管理</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chart.js（バージョン固定） -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="orientation-warning">
+        <div class="icon">📱</div>
+        <p>画面を縦向きにして<br>ご利用ください</p>
+    </div>
+    <div id="app">
+        <header class="app-header">
+            <div id="activity-warning" class="activity-warning hidden">⚠️ 他のユーザーが操作中かもしれません</div>
+            <h1>自動販売機管理</h1>
+            <div class="mode-switch">
+                <button id="mode-seller" class="mode-btn active">販売者</button>
+                <button id="mode-buyer" class="mode-btn">購入者</button>
+                <button id="mode-admin" class="mode-btn">管理</button>
+            </div>
+            <div id="machine-switch" class="machine-switch">
+                <!-- 自販機タブはJSで生成 -->
+            </div>
+        </header>
+
+        <main class="vending-machine">
+            <div id="vending-view">
+                <!-- 売上サマリー（販売者モード時のみ表示） -->
+                <div id="sales-summary" class="sales-summary hidden">
+                    <div class="sales-summary-item">
+                        <span class="sales-label">前日</span>
+                        <span id="yesterday-sales" class="sales-amount">¥0</span>
+                    </div>
+                    <div class="sales-summary-item">
+                        <span class="sales-label">今日</span>
+                        <span id="today-sales" class="sales-amount">¥0</span>
+                    </div>
+                </div>
+                <!-- 一括購入ボタン（購入者モード時のみ表示） -->
+                <div id="bulk-purchase-area" class="bulk-purchase-area hidden">
+                    <button id="bulk-purchase-btn" class="action-btn warning">この自販機の商品を一括購入</button>
+                </div>
+                <!-- 一括削除ボタン（販売者モード時のみ表示） -->
+                <div id="bulk-clear-area" class="bulk-purchase-area hidden">
+                    <button id="bulk-clear-btn" class="action-btn danger">この自販機の商品を一括削除（売上なし）</button>
+                </div>
+                <div id="copy-mode-indicator" class="copy-mode-indicator hidden">
+                    <span>📋 コピー中: <strong id="copy-product-info"></strong></span>
+                    <button id="cancel-copy-btn" class="cancel-copy-btn">完了</button>
+                </div>
+                <div id="locker-grid" class="locker-grid">
+                    <!-- ロッカーはJSで生成されます -->
+                </div>
+            </div>
+            
+            <div id="admin-view" class="hidden">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="analytics">分析</button>
+                    <button class="tab-btn" data-tab="sales">売上管理</button>
+                    <button class="tab-btn" data-tab="machines">自販機設定</button>
+                    <button class="tab-btn" data-tab="presets">プリセット</button>
+                    <button class="tab-btn" data-tab="data">データ・保護</button>
+                </div>
+
+                <div id="tab-analytics" class="tab-content active">
+                    <div class="analytics-container">
+                        <div class="month-selector-bar">
+                            <label for="analytics-month-picker" class="month-selector-label">表示月:</label>
+                            <input type="month" id="analytics-month-picker" class="month-picker">
+                        </div>
+                        <h3>商品別売上割合</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="productPieChart"></canvas>
+                        </div>
+                        <hr>
+                        <h3>時間帯別売上推移</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="timeBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-sales" class="tab-content">
+                    <div class="month-selector-bar">
+                        <label for="sales-month-picker" class="month-selector-label">表示月:</label>
+                        <input type="month" id="sales-month-picker" class="month-picker">
+                    </div>
+                    <div class="sales-controls" style="justify-content: flex-end;">
+                        <span id="total-sales" style="font-weight: bold; font-size: 1.1rem; color: var(--primary-dark);">合計: ¥0</span>
+                    </div>
+                    <div class="sales-list-container">
+                        <table id="sales-table">
+                            <thead>
+                                <tr>
+                                    <th>日時</th>
+                                    <th>商品</th>
+                                    <th>金額</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sales-table-body">
+                                <!-- 売上データ -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-machines" class="tab-content">
+                    <div class="setting-item">
+                        <label class="toggle-container">
+                            <span>ワンクリック購入モード</span>
+                            <input type="checkbox" id="one-click-toggle">
+                            <span class="checkmark"></span>
+                        </label>
+                        <p class="setting-desc">購入時に投入金額の操作をスキップし、タップですぐにカギを開けます。</p>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p><strong>クラウド同期（Googleスプレッドシート）</strong></p>
+                        <div class="cloud-sync-controls" style="margin-bottom: 15px;">
+                            <label class="toggle-container">
+                                <span>自動同期を有効にする</span>
+                                <input type="checkbox" id="auto-sync-toggle">
+                                <span class="checkmark"></span>
+                            </label>
+                            <button id="manual-sync-btn" class="action-btn success"
+                                style="margin-top: 10px; width: 100%;">クラウドから最新データを取得</button>
+                        </div>
+                        <div id="cloud-url-display-area" class="cloud-setting">
+                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURL（未設定）" readonly>
+                            <button id="edit-cloud-url-btn" class="action-btn primary">編集</button>
+                        </div>
+                        <div id="cloud-url-edit-area" class="cloud-setting-edit hidden">
+                            <div class="cloud-input-group">
+                                <label for="cloud-url-edit-input">GAS WebアプリのURL:</label>
+                                <input type="url" id="cloud-url-edit-input" placeholder="https://script.google.com/macros/s/.../exec">
+                            </div>
+                            <div class="cloud-input-group">
+                                <label for="cloud-token-edit-input">通信の合言葉（任意・セキュリティ保護用）:</label>
+                                <input type="password" id="cloud-token-edit-input" placeholder="GAS側と同じ合言葉を設定（空欄でも可）">
+                            </div>
+                            <div class="cloud-edit-buttons">
+                                <button id="save-cloud-url-btn" class="action-btn success">保存</button>
+                                <button id="cancel-cloud-url-btn" class="action-btn">キャンセル</button>
+                            </div>
+                        </div>
+                        <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。詳しい設定手順は同梱の「GAS_INSTRUCTIONS.md」を確認してください。</p>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
+                        <div class="machine-actions">
+                            <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
+                            <button id="remove-machine-btn" class="action-btn danger">最後の自販機を削除</button>
+                        </div>
+                        <div id="machine-names-list" style="margin-top: 15px;">
+                            <!-- 自販機名称設定リスト -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-presets" class="tab-content">
+                    <h3>商品名プリセット</h3>
+                    <div id="edit-preset-list" class="preset-list">
+                        <!-- 編集用プリセットリスト -->
+                    </div>
+                    <div class="add-preset-form">
+                        <input type="text" id="new-preset-name" placeholder="新しい商品名（最大30文字）" maxlength="30">
+                        <button id="add-preset-btn" class="action-btn">追加</button>
+                    </div>
+                    <hr>
+                    <h3>金額プリセット</h3>
+                    <div id="edit-price-preset-list" class="preset-list">
+                        <!-- 金額プリセットリスト -->
+                    </div>
+                    <div class="add-preset-form">
+                        <input type="number" id="new-price-preset" placeholder="新しい金額（例: 250）" min="1" max="100000">
+                        <button id="add-price-preset-btn" class="action-btn">追加</button>
+                    </div>
+                </div>
+
+                <div id="tab-data" class="tab-content">
+                    <div class="setting-item">
+                        <h3>🔒 管理画面の暗証番号（PIN）保護</h3>
+                        <p class="setting-desc">共用端末などで第三者が勝手に管理タブを開けないように暗証番号を設定できます。</p>
+                        <div class="pin-setting-area">
+                            <p>現在の状態: <strong id="pin-status-text">未設定（ロックなし）</strong></p>
+                            <div class="add-preset-form">
+                                <input type="password" id="admin-pin-input" placeholder="新しい暗証番号（4〜8桁の数字）" inputmode="numeric" maxlength="8">
+                                <button id="save-pin-btn" class="action-btn primary">暗証番号を設定・変更</button>
+                            </div>
+                            <button id="clear-pin-btn" class="action-btn hidden" style="margin-top: 8px; background: #eee; color: #333;">暗証番号を解除する</button>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <h3>💾 データのバックアップ・復元</h3>
+                        <p class="setting-desc">データをJSONファイルとして保存・復元できます。<br>※個人情報・セキュリティ保護のため、クラウド同期URLや暗証番号は出力ファイルには含まれません。</p>
+                        <div class="data-actions">
+                            <button id="download-data-btn" class="action-btn primary">データをダウンロード</button>
+                            <div class="upload-area">
+                                <input type="file" id="upload-data-input" accept=".json" style="display: none;">
+                                <button id="upload-data-btn" class="action-btn warning">データを取り込み</button>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p class="text-danger">⚠️ 売上履歴のみをリセットします（在庫や設定は維持されます）。</p>
+                        <button id="clear-all-sales-btn" class="action-btn danger">売上データをすべて削除</button>
+                    </div>
+                    <hr>
+                    <div class="setting-item">
+                        <p class="text-danger">⚠️ クラウド設定や暗証番号を含む、この端末内のすべてのデータを初期状態に戻します。</p>
+                        <button id="factory-reset-btn" class="action-btn danger" style="background: #b71c1c;">すべてのデータを初期化（工場出荷状態）</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 購入・解錠モーダル -->
+        <div id="buyer-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2 id="buyer-product-name">商品名</h2>
+                <p id="buyer-product-price" class="price-display">¥0</p>
+                <div class="coin-slot-area">
+                    <p>投入金額: <span id="inserted-amount">0</span>円</p>
+                    <button id="insert-coin-btn" class="action-btn primary">100円投入</button>
+                </div>
+                <button id="unlock-btn" class="action-btn success" disabled>解錠して取り出す</button>
+            </div>
+        </div>
+
+        <!-- 販売者・商品登録モーダル -->
+        <div id="seller-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>商品登録</h2>
+                <div class="preset-area">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <p style="margin:0;">商品名を選択（複数可）:</p>
+                        <button id="clear-product-input-btn" class="action-btn danger" style="padding:4px 8px; font-size:0.85rem; width:auto; margin:0;">クリア</button>
+                    </div>
+                    <div id="preset-buttons" class="preset-grid">
+                        <!-- プリセットボタンはJSで生成 -->
+                    </div>
+                    <p style="margin-top: 12px;">または直接入力:</p>
+                    <div id="product-inputs-container">
+                        <!-- 入力行はJSで動的生成 -->
+                    </div>
+                    <button type="button" id="add-product-btn" class="add-product-btn">＋ 商品を追加</button>
+                </div>
+                <div class="price-setting-area">
+                    <p>価格設定:</p>
+                    <div id="price-buttons" class="price-button-grid">
+                        <!-- 価格ボタンはJSで生成 -->
+                    </div>
+                    <p class="selected-price">選択中: <span id="setting-price">¥100</span></p>
+                </div>
+                <div class="bonus-area">
+                    <label class="toggle-container">
+                        <span>🎁 おまけを入れる</span>
+                        <input type="checkbox" id="bonus-toggle">
+                        <span class="checkmark"></span>
+                    </label>
+                </div>
+                <div class="seller-actions">
+                    <button id="register-btn" class="action-btn success">登録して施錠</button>
+                    <button id="copy-product-btn" class="action-btn primary hidden">この商品をコピー</button>
+                    <button id="admin-purchase-btn" class="action-btn warning hidden">管理者購入 (硬貨不要)</button>
+                    <button id="clear-locker-btn" class="action-btn danger hidden">取下げ (売上なし)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理者PIN入力モーダル -->
+        <div id="pin-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>🔒 管理者認証</h2>
+                <p>管理画面を開くには暗証番号を入力してください。</p>
+                <input type="password" id="pin-verify-input" class="product-name-input" style="width: 100%; font-size: 1.3rem; text-align: center; letter-spacing: 4px; margin: 10px 0;" placeholder="••••" inputmode="numeric" maxlength="8">
+                <button id="pin-verify-btn" class="action-btn primary">ロック解除</button>
+            </div>
+        </div>
+
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

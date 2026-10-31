@@ -43,7 +43,7 @@ body {
     box-shadow: var(--shadow);
 }
 
-/* Header */
+/* ヘッダー */
 .app-header {
     display: flex;
     flex-direction: column;
@@ -59,6 +59,18 @@ body {
     text-align: center;
     font-size: 1.6rem;
     color: var(--primary-dark);
+}
+
+/* 他ユーザーの同時操作警告バー */
+.activity-warning {
+    background: #FFF3E0;
+    color: #E65100;
+    border: 1px solid #FFB74D;
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: bold;
 }
 
 .mode-switch,
@@ -104,6 +116,12 @@ body {
     color: #E91E63;
 }
 
+/* 管理タブ: 青系 */
+.mode-btn.active#mode-admin {
+    background: #E3F2FD;
+    color: #1976D2;
+}
+
 /* 自販機タブ: アクティブ時は緑系 */
 .machine-tab.active {
     background: #C8E6C9;
@@ -121,7 +139,7 @@ body {
     padding: 5px;
 }
 
-/* Sales Summary */
+/* 売上サマリー */
 .sales-summary {
     display: flex;
     justify-content: space-around;
@@ -159,7 +177,7 @@ body {
     color: var(--primary-dark);
 }
 
-/* Bulk Purchase Area */
+/* 一括購入・一括削除エリア */
 .bulk-purchase-area {
     margin-bottom: 15px;
 }
@@ -192,36 +210,35 @@ body {
 }
 
 /* 金額別ロッカー色分け */
+/* ~¥100 緑 */
 .locker.locked.price-tier-1 {
     background: #E8F5E9;
     border-color: #81C784;
 }
 
-/* ~¥100 緑 */
+/* ~¥200 青 */
 .locker.locked.price-tier-2 {
     background: #E3F2FD;
     border-color: #64B5F6;
 }
 
-/* ~¥200 青 */
+/* ~¥300 黄 */
 .locker.locked.price-tier-3 {
     background: #FFF8E1;
     border-color: #FFD54F;
 }
 
-/* ~¥300 黄 */
+/* ~¥400 オレンジ */
 .locker.locked.price-tier-4 {
     background: #FFF3E0;
     border-color: #FFB74D;
 }
 
-/* ~¥400 オレンジ */
+/* ¥500~ ピンク */
 .locker.locked.price-tier-5 {
     background: #FCE4EC;
     border-color: #F06292;
 }
-
-/* ¥500~ ピンク */
 
 .locker:active {
     transform: scale(0.95);
@@ -237,10 +254,8 @@ body {
     top: 4px;
     left: 4px;
     font-size: 0.95rem;
-    /* 拡大 */
     font-weight: bold;
     color: #666;
-    /* 少し濃く */
 }
 
 .locker-content {
@@ -268,7 +283,6 @@ body {
     padding: 3px 8px;
     border-radius: 10px;
     font-size: 1.3rem;
-    /* 拡大 */
     font-weight: bold;
 }
 
@@ -277,7 +291,7 @@ body {
     font-size: 1.1rem;
 }
 
-/* Modal */
+/* モーダル */
 .modal {
     display: flex;
     position: fixed;
@@ -333,7 +347,7 @@ h2 {
     font-size: 1.2rem;
 }
 
-/* Controls */
+/* ボタン・コントロール類 */
 .action-btn {
     width: 100%;
     padding: 16px;
@@ -392,7 +406,7 @@ h2 {
     font-size: 1.3rem;
 }
 
-/* Price Button Grid */
+/* 価格ボタングリッド */
 .price-button-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -532,7 +546,7 @@ h2 {
     border: 1px solid #ffe082;
 }
 
-/* Admin Tabs */
+/* 管理タブ */
 .tabs {
     display: flex;
     gap: 5px;
@@ -568,7 +582,31 @@ h2 {
     display: block;
 }
 
-/* Machine Settings & General Settings */
+/* 表示月セレクタバー */
+.month-selector-bar {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.month-selector-label {
+    font-weight: bold;
+    color: var(--primary-dark);
+}
+
+.month-picker {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+/* 自販機・一般設定 */
 .setting-item {
     padding: 15px 0;
 }
@@ -593,6 +631,47 @@ h2 {
     padding: 10px 15px;
 }
 
+/* クラウド設定編集エリア */
+.cloud-setting-edit {
+    background: #f9f9f9;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-top: 8px;
+}
+
+.cloud-input-group {
+    margin-bottom: 10px;
+}
+
+.cloud-input-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #555;
+}
+
+.cloud-input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.cloud-edit-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.cloud-edit-buttons .action-btn {
+    flex: 1;
+    padding: 10px;
+    margin-top: 4px;
+}
+
 .setting-desc {
     font-size: 0.85rem;
     color: #666;
@@ -610,7 +689,7 @@ hr {
     font-weight: bold;
 }
 
-/* Toggle Switch */
+/* トグルスイッチ */
 .toggle-container {
     display: flex;
     justify-content: space-between;
@@ -659,7 +738,7 @@ input:checked+.checkmark::after {
     margin-top: 15px;
 }
 
-/* Sales Table */
+/* 売上テーブル */
 .sales-controls {
     display: flex;
     justify-content: space-between;
@@ -732,7 +811,7 @@ input:checked+.checkmark::after {
     display: none !important;
 }
 
-/* Copy Mode */
+/* コピーモード */
 .copy-mode-indicator {
     background: linear-gradient(135deg, #e3f2fd, #bbdefb);
     border: 2px solid #2196F3;
@@ -766,7 +845,6 @@ input:checked+.checkmark::after {
 }
 
 @keyframes pulse-border {
-
     0%,
     100% {
         border-color: #2196F3;
@@ -777,7 +855,7 @@ input:checked+.checkmark::after {
     }
 }
 
-/* Undo Notification */
+/* 購入取り消し（Undo）通知 */
 .undo-notification {
     position: fixed;
     bottom: 20px;
@@ -837,7 +915,6 @@ input:checked+.checkmark::after {
     background: rgba(255, 255, 255, 0.95);
     z-index: 9999;
     display: none;
-    /* デフォルト非表示 */
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -882,23 +959,15 @@ input:checked+.checkmark::after {
     }
 }
 
-/* ==================================
-   追加・変更分のスタイル
-   ================================== */
-
-/* 管理タブ: 青系 */
-.mode-btn.active#mode-admin {
-    background: #E3F2FD;
-    color: #1976D2;
-}
-
 /* ビューの切り替え */
 #vending-view.hidden {
     display: none;
 }
+
 #admin-view {
     background: white;
 }
+
 #admin-view.hidden {
     display: none;
 }
@@ -907,12 +976,14 @@ input:checked+.checkmark::after {
 .analytics-container {
     padding: 10px;
 }
+
 .analytics-container h3 {
     margin-top: 0;
     margin-bottom: 10px;
     font-size: 1.1rem;
     color: var(--primary-dark);
 }
+
 .chart-wrapper {
     position: relative;
     width: 100%;
@@ -934,6 +1005,7 @@ input:checked+.checkmark::after {
     gap: 10px;
     margin-bottom: 8px;
 }
+
 .machine-name-item input {
     flex: 1;
     padding: 8px;

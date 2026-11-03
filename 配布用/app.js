@@ -24,7 +24,7 @@ let state = {
         cloudToken: '',   // クラウド同期用の合言葉（任意）
         adminPinHash: '', // 管理画面ロック用の暗証番号ハッシュ（任意）
         autoSync: true,
-        oneClickMode: false
+        oneClickMode: true // 配布用の初期状態はオン
     },
     // UI状態（保存しない一時データ）
     currentMachine: 1,
@@ -272,6 +272,9 @@ function loadData() {
                     adminPinHash: typeof parsed.adminPinHash === 'string' ? parsed.adminPinHash : '',
                     autoSync: parsed.autoSync !== undefined ? Boolean(parsed.autoSync) : true
                 };
+                if (state.data.oneClickMode === undefined) {
+                    state.data.oneClickMode = true;
+                }
             }
         } catch (e) {
             console.error('データ読み込みエラー', e);
@@ -1604,7 +1607,7 @@ function factoryReset() {
         cloudToken: '',
         adminPinHash: '',
         autoSync: true,
-        oneClickMode: false
+        oneClickMode: true
     };
     state.currentMachine = 1;
     state.mode = 'seller';

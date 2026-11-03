@@ -24,7 +24,7 @@ let state = {
         cloudToken: '',   // クラウド同期用の合言葉（任意）
         adminPinHash: '', // 管理画面ロック用の暗証番号ハッシュ（任意）
         autoSync: true,
-        oneClickMode: false
+        oneClickMode: true // 初期状態はオン
     },
     // UI状態（保存しない一時データ）
     currentMachine: 1,
@@ -276,6 +276,14 @@ function loadData() {
         } catch (e) {
             console.error('データ読み込みエラー', e);
         }
+    }
+
+    // デフォルトONへの自動移行（過去の保存データでfalseになっている既存環境の更新）
+    const migrationKey = `${STORAGE_KEY}_oneclick_init_v1`;
+    if (!localStorage.getItem(migrationKey)) {
+        state.data.oneClickMode = true;
+        localStorage.setItem(migrationKey, 'true');
+        saveData();
     }
 }
 
@@ -1593,6 +1601,7 @@ function factoryReset() {
     if (!confirm('この操作は取り消せません。本当に初期化しますか？')) return;
 
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(`${STORAGE_KEY}_oneclick_init_v1`);
     state.data = {
         lockers: [],
         sales: [],
@@ -1604,7 +1613,7 @@ function factoryReset() {
         cloudToken: '',
         adminPinHash: '',
         autoSync: true,
-        oneClickMode: false
+        oneClickMode: true
     };
     state.currentMachine = 1;
     state.mode = 'seller';

@@ -280,6 +280,14 @@ function loadData() {
             console.error('データ読み込みエラー', e);
         }
     }
+
+    // デフォルトONへの自動移行（過去の保存データでfalseになっている既存環境の更新）
+    const migrationKey = `${STORAGE_KEY}_oneclick_init_v1`;
+    if (!localStorage.getItem(migrationKey)) {
+        state.data.oneClickMode = true;
+        localStorage.setItem(migrationKey, 'true');
+        saveData();
+    }
 }
 
 /**
@@ -1596,6 +1604,7 @@ function factoryReset() {
     if (!confirm('この操作は取り消せません。本当に初期化しますか？')) return;
 
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(`${STORAGE_KEY}_oneclick_init_v1`);
     state.data = {
         lockers: [],
         sales: [],

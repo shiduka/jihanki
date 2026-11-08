@@ -717,7 +717,7 @@ function setupEventListeners() {
             saveData();
             editArea.classList.add('hidden');
             displayArea.classList.remove('hidden');
-            renderMachineSettings();
+            renderDataSettings();
             if (url) {
                 alert('クラウド設定を保存しました。同期を開始します。');
                 fetchFromCloud();
@@ -1750,8 +1750,6 @@ function removePricePreset(index) {
 function renderMachineSettings() {
     document.getElementById('machine-count').textContent = state.data.machineCount;
     document.getElementById('one-click-toggle').checked = state.data.oneClickMode;
-    document.getElementById('auto-sync-toggle').checked = state.data.autoSync;
-    document.getElementById('cloud-url-input').value = state.data.cloudUrl || '';
 
     // 各自販機の名称設定リストを安全に構築
     const list = document.getElementById('machine-names-list');
@@ -1810,6 +1808,13 @@ function saveMachineName(m) {
  * データ・保護タブの表示状態を更新する
  */
 function renderDataSettings() {
+    // クラウド設定の表示更新
+    const autoSyncEl = document.getElementById('auto-sync-toggle');
+    if (autoSyncEl) autoSyncEl.checked = state.data.autoSync;
+    const cloudUrlEl = document.getElementById('cloud-url-input');
+    if (cloudUrlEl) cloudUrlEl.value = state.data.cloudUrl || '';
+
+    // 暗証番号設定の表示更新
     const statusText = document.getElementById('pin-status-text');
     const clearPinBtn = document.getElementById('clear-pin-btn');
     if (statusText && clearPinBtn) {

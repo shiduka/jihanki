@@ -127,38 +127,6 @@
                     </div>
                     <hr>
                     <div class="setting-item">
-                        <p><strong>クラウド同期（Googleスプレッドシート）</strong></p>
-                        <div class="cloud-sync-controls" style="margin-bottom: 15px;">
-                            <label class="toggle-container">
-                                <span>自動同期を有効にする</span>
-                                <input type="checkbox" id="auto-sync-toggle">
-                                <span class="checkmark"></span>
-                            </label>
-                            <button id="manual-sync-btn" class="action-btn success"
-                                style="margin-top: 10px; width: 100%;">クラウドから最新データを取得</button>
-                        </div>
-                        <div id="cloud-url-display-area" class="cloud-setting">
-                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURL（未設定）" readonly>
-                            <button id="edit-cloud-url-btn" class="action-btn primary">編集</button>
-                        </div>
-                        <div id="cloud-url-edit-area" class="cloud-setting-edit hidden">
-                            <div class="cloud-input-group">
-                                <label for="cloud-url-edit-input">GAS WebアプリのURL:</label>
-                                <input type="url" id="cloud-url-edit-input" placeholder="https://script.google.com/macros/s/.../exec">
-                            </div>
-                            <div class="cloud-input-group">
-                                <label for="cloud-token-edit-input">通信の合言葉（任意・セキュリティ保護用）:</label>
-                                <input type="password" id="cloud-token-edit-input" placeholder="GAS側と同じ合言葉を設定（空欄でも可）">
-                            </div>
-                            <div class="cloud-edit-buttons">
-                                <button id="save-cloud-url-btn" class="action-btn success">保存</button>
-                                <button id="cancel-cloud-url-btn" class="action-btn">キャンセル</button>
-                            </div>
-                        </div>
-                        <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。詳しい設定手順は同梱の「GAS_INSTRUCTIONS.md」を確認してください。</p>
-                    </div>
-                    <hr>
-                    <div class="setting-item">
                         <p>現在の自販機台数: <strong id="machine-count">2</strong>台</p>
                         <div class="machine-actions">
                             <button id="add-machine-btn" class="action-btn primary">自販機を追加</button>
@@ -191,6 +159,38 @@
                 </div>
 
                 <div id="tab-data" class="tab-content">
+                    <div class="setting-item">
+                        <h3>☁️ クラウド同期（Googleスプレッドシート）</h3>
+                        <div class="cloud-sync-controls" style="margin-bottom: 15px;">
+                            <label class="toggle-container">
+                                <span>自動同期を有効にする</span>
+                                <input type="checkbox" id="auto-sync-toggle">
+                                <span class="checkmark"></span>
+                            </label>
+                            <button id="manual-sync-btn" class="action-btn success"
+                                style="margin-top: 10px; width: 100%;">クラウドから最新データを取得</button>
+                        </div>
+                        <div id="cloud-url-display-area" class="cloud-setting">
+                            <input type="password" id="cloud-url-input" placeholder="GAS WebアプリのURL（未設定）" readonly>
+                            <button id="edit-cloud-url-btn" class="action-btn primary">編集</button>
+                        </div>
+                        <div id="cloud-url-edit-area" class="cloud-setting-edit hidden">
+                            <div class="cloud-input-group">
+                                <label for="cloud-url-edit-input">GAS WebアプリのURL:</label>
+                                <input type="url" id="cloud-url-edit-input" placeholder="https://script.google.com/macros/s/.../exec">
+                            </div>
+                            <div class="cloud-input-group">
+                                <label for="cloud-token-edit-input">通信の合言葉（任意・セキュリティ保護用）:</label>
+                                <input type="password" id="cloud-token-edit-input" placeholder="GAS側と同じ合言葉を設定（空欄でも可）">
+                            </div>
+                            <div class="cloud-edit-buttons">
+                                <button id="save-cloud-url-btn" class="action-btn success">保存</button>
+                                <button id="cancel-cloud-url-btn" class="action-btn">キャンセル</button>
+                            </div>
+                        </div>
+                        <p class="setting-desc">URLを設定すると、複数端末で在庫や売上が共有されます。詳しい設定手順は同梱の「GAS_INSTRUCTIONS.md」を確認してください。</p>
+                    </div>
+                    <hr>
                     <div class="setting-item">
                         <h3>🔒 管理画面の暗証番号（PIN）保護</h3>
                         <p class="setting-desc">共用端末などで第三者が勝手に管理タブを開けないように暗証番号を設定できます。</p>

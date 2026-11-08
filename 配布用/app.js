@@ -1366,8 +1366,18 @@ async function fetchFromCloud(silent = false) {
 
         if (cloudData && cloudData.lockers) {
             if (cloudData.lastActiveTime) {
-                const diff = Date.now() - Number(cloudData.lastActiveTime);
-                document.getElementById('activity-warning').classList.toggle('hidden', diff < 60000);
+                const lastActive = Number(cloudData.lastActiveTime);
+                const diffFromNow = Date.now() - lastActive;
+                // クラウドの最終更新が1分以内かどうか
+                const isRecentlyActive = Math.abs(diffFromNow) < 60000;
+                // 自分が直近で操作したことによる更新かどうか（1分以内の自操作は除外）
+                const isMyOwnAction = (Date.now() - state.lastLocalEditTime) < 65000;
+                const isOtherUserActive = isRecentlyActive && !isMyOwnAction;
+
+                const warningEl = document.getElementById('activity-warning');
+                if (warningEl) {
+                    warningEl.classList.toggle('hidden', !isOtherUserActive);
+                }
             }
 
             const sanitized = sanitizeImportedData(cloudData);
